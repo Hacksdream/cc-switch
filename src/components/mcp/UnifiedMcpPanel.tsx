@@ -198,7 +198,7 @@ const UnifiedMcpPanel = React.forwardRef<
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             type="text"
-            placeholder={t("mcp.filter.searchPlaceholder")}
+            placeholder={t("mcp.unifiedPanel.filter.searchPlaceholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -209,10 +209,12 @@ const UnifiedMcpPanel = React.forwardRef<
           onValueChange={(value) => setAppFilter(value as "all" | AppId)}
         >
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder={t("mcp.filter.allApps")} />
+            <SelectValue placeholder={t("mcp.unifiedPanel.filter.allApps")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("mcp.filter.allApps")}</SelectItem>
+            <SelectItem value="all">
+              {t("mcp.unifiedPanel.filter.allApps")}
+            </SelectItem>
             <SelectItem value="claude">
               {t("mcp.unifiedPanel.apps.claude")}
             </SelectItem>
@@ -234,12 +236,18 @@ const UnifiedMcpPanel = React.forwardRef<
           }
         >
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder={t("mcp.filter.allStatus")} />
+            <SelectValue placeholder={t("mcp.unifiedPanel.filter.allStatus")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("mcp.filter.allStatus")}</SelectItem>
-            <SelectItem value="enabled">{t("mcp.filter.enabled")}</SelectItem>
-            <SelectItem value="disabled">{t("mcp.filter.disabled")}</SelectItem>
+            <SelectItem value="all">
+              {t("mcp.unifiedPanel.filter.allStatus")}
+            </SelectItem>
+            <SelectItem value="enabled">
+              {t("mcp.unifiedPanel.filter.enabled")}
+            </SelectItem>
+            <SelectItem value="disabled">
+              {t("mcp.unifiedPanel.filter.disabled")}
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -258,12 +266,12 @@ const UnifiedMcpPanel = React.forwardRef<
             <h3 className="text-lg font-medium text-foreground mb-2">
               {serverEntries.length === 0
                 ? t("mcp.unifiedPanel.noServers")
-                : t("mcp.filter.noResults")}
+                : t("mcp.unifiedPanel.filter.noResults")}
             </h3>
             <p className="text-muted-foreground text-sm">
               {serverEntries.length === 0
                 ? t("mcp.emptyDescription")
-                : t("mcp.filter.noResultsHint")}
+                : t("mcp.unifiedPanel.filter.noResultsHint")}
             </p>
           </div>
         ) : (
