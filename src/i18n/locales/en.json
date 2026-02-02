@@ -1006,7 +1006,12 @@
     "confirm": {
       "deleteTitle": "Confirm Delete",
       "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?"
-    }
+    },
+    "filter": {
+      "search": "Search prompts..."
+    },
+    "noFilterResults": "No matching prompts",
+    "noFilterResultsDescription": "Try adjusting your search"
   },
   "env": {
     "warning": {
@@ -1130,9 +1135,18 @@
       "installed": "Installed",
       "uninstalled": "Not installed",
       "repo": "Filter by repo",
-      "allRepos": "All repos"
+      "allRepos": "All repos",
+      "search": "Search skills...",
+      "app": "Filter by app",
+      "allApps": "All Apps",
+      "status": "Filter by status",
+      "allStatus": "All Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
     },
     "noResults": "No matching skills found",
+    "noFilterResults": "No matching skills",
+    "noFilterResultsDescription": "Try adjusting your filters",
     "noInstalled": "No skills installed",
     "noInstalledDescription": "Discover and install skills from repositories, or import existing skills",
     "discover": "Discover Skills",

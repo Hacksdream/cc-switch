@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText } from "lucide-react";
+import { FileText, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { type AppId } from "@/lib/api";
 import { usePromptActions } from "@/hooks/usePromptActions";
 import PromptListItem from "./PromptListItem";
@@ -29,6 +30,7 @@ const PromptPanel = React.forwardRef<PromptPanelHandle, PromptPanelProps>(
       messageParams?: Record<string, unknown>;
       onConfirm: () => void;
     } | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const {
       prompts,
@@ -93,6 +95,16 @@ const PromptPanel = React.forwardRef<PromptPanelHandle, PromptPanelProps>(
 
     const promptEntries = useMemo(() => Object.entries(prompts), [prompts]);
 
+    const filteredPrompts = useMemo(() => {
+      if (!searchQuery.trim()) return promptEntries;
+      const query = searchQuery.toLowerCase();
+      return promptEntries.filter(([_, prompt]) => {
+        const nameMatch = prompt.name?.toLowerCase().includes(query);
+        const contentMatch = prompt.content?.toLowerCase().includes(query);
+        return nameMatch || contentMatch;
+      });
+    }, [promptEntries, searchQuery]);
+
     const enabledPrompt = promptEntries.find(([_, p]) => p.enabled);
 
     return (
@@ -104,6 +116,19 @@ const PromptPanel = React.forwardRef<PromptPanelHandle, PromptPanelProps>(
               ? t("prompts.enabledName", { name: enabledPrompt[1].name })
               : t("prompts.noneEnabled")}
           </div>
+        </div>
+
+        <div className="relative mb-4">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            size={16}
+          />
+          <Input
+            placeholder={t("prompts.filter.search")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto pb-16">
@@ -123,9 +148,21 @@ const PromptPanel = React.forwardRef<PromptPanelHandle, PromptPanelProps>(
                 {t("prompts.emptyDescription")}
               </p>
             </div>
+          ) : filteredPrompts.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                <Search size={24} className="text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                {t("prompts.noFilterResults")}
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                {t("prompts.noFilterResultsDescription")}
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {promptEntries.map(([id, prompt]) => (
+              {filteredPrompts.map(([id, prompt]) => (
                 <PromptListItem
                   key={id}
                   id={id}

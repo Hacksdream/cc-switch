@@ -1006,7 +1006,12 @@
     "confirm": {
       "deleteTitle": "削除の確認",
       "deleteMessage": "プロンプト「{{name}}」を削除してもよろしいですか？"
-    }
+    },
+    "filter": {
+      "search": "プロンプトを検索..."
+    },
+    "noFilterResults": "一致するプロンプトがありません",
+    "noFilterResultsDescription": "検索条件を調整してみてください"
   },
   "env": {
     "warning": {
@@ -1128,9 +1133,18 @@
       "installed": "インストール済み",
       "uninstalled": "未インストール",
       "repo": "リポジトリで絞り込み",
-      "allRepos": "すべてのリポジトリ"
+      "allRepos": "すべてのリポジトリ",
+      "search": "スキルを検索...",
+      "app": "アプリで絞り込み",
+      "allApps": "すべてのアプリ",
+      "status": "状態で絞り込み",
+      "allStatus": "すべての状態",
+      "enabled": "有効",
+      "disabled": "無効"
     },
     "noResults": "一致するスキルが見つかりませんでした",
+    "noFilterResults": "一致するスキルがありません",
+    "noFilterResultsDescription": "フィルターを調整してください",
     "noInstalled": "インストールされたスキルがありません",
     "noInstalledDescription": "リポジトリからスキルを発見してインストールするか、既存のスキルをインポートしてください",
     "discover": "スキルを発見",
