@@ -836,6 +836,15 @@
         "codex": "Codex",
         "gemini": "Gemini",
         "opencode": "OpenCode"
+      },
+      "filter": {
+        "searchPlaceholder": "サーバーを検索...",
+        "allApps": "すべてのアプリ",
+        "allStatus": "すべてのステータス",
+        "enabled": "有効",
+        "disabled": "無効",
+        "noResults": "一致するサーバーがありません",
+        "noResultsHint": "検索条件やフィルターを変更してみてください"
       }
     },
     "userLevelPath": "ユーザーレベルの MCP パス",

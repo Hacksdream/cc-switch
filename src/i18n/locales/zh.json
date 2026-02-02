@@ -836,6 +836,15 @@
         "codex": "Codex",
         "gemini": "Gemini",
         "opencode": "OpenCode"
+      },
+      "filter": {
+        "searchPlaceholder": "搜索服务器...",
+        "allApps": "全部应用",
+        "allStatus": "全部状态",
+        "enabled": "已启用",
+        "disabled": "已禁用",
+        "noResults": "没有匹配的服务器",
+        "noResultsHint": "请尝试调整搜索条件或筛选选项"
       }
     },
     "userLevelPath": "用户级 MCP 配置路径",

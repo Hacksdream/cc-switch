@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Server } from "lucide-react";
+import { Server, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -38,6 +46,11 @@ const UnifiedMcpPanel = React.forwardRef<
   const { t } = useTranslation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [appFilter, setAppFilter] = useState<"all" | AppId>("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "enabled" | "disabled"
+  >("all");
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -56,6 +69,31 @@ const UnifiedMcpPanel = React.forwardRef<
     if (!serversMap) return [];
     return Object.entries(serversMap);
   }, [serversMap]);
+
+  // Filter entries based on search term, app filter, and status filter
+  const filteredEntries = useMemo(() => {
+    return serverEntries.filter(([id, server]) => {
+      const name = server.name || id;
+      const description = server.description || "";
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        !searchTerm ||
+        name.toLowerCase().includes(searchLower) ||
+        description.toLowerCase().includes(searchLower);
+
+      if (!matchesSearch) return false;
+
+      if (appFilter === "all") {
+        if (statusFilter === "all") return true;
+        const hasAnyEnabled = Object.values(server.apps).some(Boolean);
+        return statusFilter === "enabled" ? hasAnyEnabled : !hasAnyEnabled;
+      } else {
+        const isEnabledForApp = server.apps[appFilter];
+        if (statusFilter === "all") return true;
+        return statusFilter === "enabled" ? isEnabledForApp : !isEnabledForApp;
+      }
+    });
+  }, [serverEntries, searchTerm, appFilter, statusFilter]);
 
   // Count enabled servers per app
   const enabledCounts = useMemo(() => {
@@ -154,27 +192,83 @@ const UnifiedMcpPanel = React.forwardRef<
         </div>
       </div>
 
+      {/* Filter Section */}
+      <div className="flex-shrink-0 flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="text"
+            placeholder={t("mcp.filter.searchPlaceholder")}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={appFilter}
+          onValueChange={(value) => setAppFilter(value as "all" | AppId)}
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder={t("mcp.filter.allApps")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("mcp.filter.allApps")}</SelectItem>
+            <SelectItem value="claude">
+              {t("mcp.unifiedPanel.apps.claude")}
+            </SelectItem>
+            <SelectItem value="codex">
+              {t("mcp.unifiedPanel.apps.codex")}
+            </SelectItem>
+            <SelectItem value="gemini">
+              {t("mcp.unifiedPanel.apps.gemini")}
+            </SelectItem>
+            <SelectItem value="opencode">
+              {t("mcp.unifiedPanel.apps.opencode")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) =>
+            setStatusFilter(value as "all" | "enabled" | "disabled")
+          }
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder={t("mcp.filter.allStatus")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("mcp.filter.allStatus")}</SelectItem>
+            <SelectItem value="enabled">{t("mcp.filter.enabled")}</SelectItem>
+            <SelectItem value="disabled">{t("mcp.filter.disabled")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-24">
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">
             {t("mcp.loading")}
           </div>
-        ) : serverEntries.length === 0 ? (
+        ) : filteredEntries.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
               <Server size={24} className="text-muted-foreground" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {t("mcp.unifiedPanel.noServers")}
+              {serverEntries.length === 0
+                ? t("mcp.unifiedPanel.noServers")
+                : t("mcp.filter.noResults")}
             </h3>
             <p className="text-muted-foreground text-sm">
-              {t("mcp.emptyDescription")}
+              {serverEntries.length === 0
+                ? t("mcp.emptyDescription")
+                : t("mcp.filter.noResultsHint")}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {serverEntries.map(([id, server]) => (
+            {filteredEntries.map(([id, server]) => (
               <UnifiedMcpListItem
                 key={id}
                 id={id}

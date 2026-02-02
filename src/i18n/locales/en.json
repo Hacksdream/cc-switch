@@ -836,6 +836,15 @@
         "codex": "Codex",
         "gemini": "Gemini",
         "opencode": "OpenCode"
+      },
+      "filter": {
+        "searchPlaceholder": "Search servers...",
+        "allApps": "All Apps",
+        "allStatus": "All Status",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "noResults": "No matching servers",
+        "noResultsHint": "Try adjusting your search or filter criteria"
       }
     },
     "userLevelPath": "User-level MCP path",
