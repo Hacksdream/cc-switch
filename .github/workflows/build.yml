@@ -317,7 +317,66 @@ jobs:
           echo "Collected signatures (if any alongside artifacts):"
           ls -la release-assets/*.sig || echo "No signatures found"
 
-      - name: Upload Release Assets
+      - name: Determine artifact name
+        id: artifact-name
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "macOS" ]; then
+            echo "name=release-macos" >> $GITHUB_OUTPUT
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            echo "name=release-windows" >> $GITHUB_OUTPUT
+          elif [ "${{ runner.os }}" == "Linux" ]; then
+            ARCH="${{ matrix.arch || 'x86_64' }}"
+            echo "name=release-linux-${ARCH}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: release-assets/*
+          retention-days: 1
+
+      - name: List generated bundles (debug)
+        if: always()
+        shell: bash
+        run: |
+          echo "Listing bundles in src-tauri/target..."
+          find src-tauri/target -maxdepth 4 -type f -name "*.*" 2>/dev/null || true
+
+  # Consolidate all platform artifacts into a single GitHub Release
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version info
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILD_VERSION="dev-${VERSION}-${SHORT_SHA}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "build_version=$BUILD_VERSION" >> $GITHUB_OUTPUT
+          echo "Build version: $BUILD_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          pattern: release-*
+          merge-multiple: true
+
+      - name: List all downloaded artifacts
+        run: |
+          echo "All artifacts:"
+          ls -la all-artifacts/
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.build_version }}
@@ -340,13 +399,6 @@ jobs:
             - **Windows**: `CC-Switch-${{ steps.version.outputs.build_version }}-Windows.msi` / `-Portable.zip`
             - **Linux (x86_64)**: `CC-Switch-${{ steps.version.outputs.build_version }}-Linux-x86_64.AppImage` / `.deb` / `.rpm`
             - **Linux (ARM64)**: `CC-Switch-${{ steps.version.outputs.build_version }}-Linux-arm64.AppImage` / `.deb` / `.rpm`
-          files: release-assets/*
+          files: all-artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: List generated bundles (debug)
-        if: always()
-        shell: bash
-        run: |
-          echo "Listing bundles in src-tauri/target..."
-          find src-tauri/target -maxdepth 4 -type f -name "*.*" 2>/dev/null || true
