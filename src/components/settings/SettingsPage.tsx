@@ -263,6 +263,10 @@ export function SettingsPage({
                       onChange={(terminal) =>
                         handleAutoSave({ preferredTerminal: terminal })
                       }
+                      customTerminals={settings.customTerminals ?? []}
+                      onCustomTerminalsChange={(terminals) =>
+                        handleAutoSave({ customTerminals: terminals })
+                      }
                     />
                   </motion.div>
                 ) : null}

@@ -125,6 +125,18 @@ pub struct AppSettings {
     /// - Linux: "gnome-terminal" | "konsole" | "xfce4-terminal" | "alacritty" | "kitty" | "ghostty"
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preferred_terminal: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_terminals: Vec<CustomTerminal>,
+}
+
+/// 自定义终端配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomTerminal {
+    /// 终端路径或标识符（如 /Applications/Warp.app）
+    pub value: String,
+    /// 终端显示名称（如 Warp）
+    pub label: String,
 }
 
 fn default_show_in_tray() -> bool {
@@ -156,6 +168,7 @@ impl Default for AppSettings {
             current_provider_opencode: None,
             skill_sync_method: SyncMethod::default(),
             preferred_terminal: None,
+            custom_terminals: Vec::new(),
         }
     }
 }

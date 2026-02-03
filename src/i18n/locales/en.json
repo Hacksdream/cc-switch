@@ -315,7 +315,16 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "customTerminals": "Custom Terminals",
+      "customName": "Name",
+      "customCommand": "Command",
+      "customNamePlaceholder": "e.g. Warp",
+      "customCommandPlaceholder": "e.g. warp",
+      "addCustomTerminal": "Add",
+      "noCustomTerminals": "No custom terminals added",
+      "browseTerminal": "Browse...",
+      "browseTitle": "Select Terminal Application"
     },
     "configDirectoryOverride": "Configuration Directory Override (Advanced)",
     "configDirectoryDescription": "When using Claude Code or Codex in environments like WSL, you can manually specify the configuration directory to the one in WSL to keep provider data consistent with the main environment.",

@@ -211,6 +211,8 @@ export interface Settings {
   // Windows: "cmd" | "powershell" | "wt"
   // Linux: "gnome-terminal" | "konsole" | "xfce4-terminal" | "alacritty" | "kitty" | "ghostty"
   preferredTerminal?: string;
+  // 自定义终端列表（用户手动添加的终端应用）
+  customTerminals?: Array<{ value: string; label: string }>;
 }
 
 export interface SessionMeta {

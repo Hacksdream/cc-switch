@@ -647,11 +647,20 @@ exec bash --norc --noprofile
 
     // Try the preferred terminal first, fall back to Terminal.app if it fails
     // Note: Kitty doesn't need the -e flag, others do
+    // Custom terminals (paths starting with "/" or ending with ".app") use open -a with -e flag
     let result = match terminal {
         "iterm2" => launch_macos_iterm2(&script_file),
         "alacritty" => launch_macos_open_app("Alacritty", &script_file, true),
         "kitty" => launch_macos_open_app("kitty", &script_file, false),
         "ghostty" => launch_macos_open_app("Ghostty", &script_file, true),
+        path if path.to_lowercase().contains("warp") => {
+            // Warp requires special handling via URI scheme + launch configuration
+            launch_macos_warp(&script_file)
+        }
+        path if path.starts_with('/') || path.ends_with(".app") => {
+            // Custom terminal path (e.g., "/Applications/Alacritty.app")
+            launch_macos_open_app(path, &script_file, true)
+        }
         _ => launch_macos_terminal_app(&script_file), // "terminal" or default
     };
 
@@ -761,6 +770,63 @@ fn launch_macos_open_app(
         return Err(format!(
             "{} 启动失败 (exit code: {:?}): {}",
             app_name,
+            output.status.code(),
+            stderr
+        ));
+    }
+
+    Ok(())
+}
+
+/// macOS: Warp terminal via URI scheme + launch configuration
+/// Warp doesn't support standard --args, requires warp://launch/<config> URI
+#[cfg(target_os = "macos")]
+fn launch_macos_warp(script_file: &std::path::Path) -> Result<(), String> {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let home = std::env::var("HOME").map_err(|e| format!("获取 HOME 失败: {e}"))?;
+    let config_dir = PathBuf::from(&home).join(".warp/launch_configurations");
+    std::fs::create_dir_all(&config_dir)
+        .map_err(|e| format!("创建 Warp 配置目录失败: {e}"))?;
+
+    let config_name = "cc-switch-temp";
+    let config_path = config_dir.join(format!("{}.yaml", config_name));
+
+    let cwd = script_file
+        .parent()
+        .unwrap_or(std::path::Path::new("/"))
+        .display();
+
+    let yaml_content = format!(
+        r#"---
+name: {config_name}
+windows:
+  - tabs:
+      - title: CC Switch
+        layout:
+          cwd: "{cwd}"
+          commands:
+            - exec: bash '{script}'
+"#,
+        config_name = config_name,
+        cwd = cwd,
+        script = script_file.display()
+    );
+
+    std::fs::write(&config_path, &yaml_content)
+        .map_err(|e| format!("写入 Warp 配置失败: {e}"))?;
+
+    let uri = format!("warp://launch/{}", config_name);
+    let output = Command::new("open")
+        .arg(&uri)
+        .output()
+        .map_err(|e| format!("启动 Warp 失败: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "Warp 启动失败 (exit code: {:?}): {}",
             output.status.code(),
             stderr
         ));

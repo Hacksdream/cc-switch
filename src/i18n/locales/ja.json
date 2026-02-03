@@ -315,7 +315,16 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "customTerminals": "カスタムターミナル",
+      "customName": "名前",
+      "customCommand": "コマンド",
+      "customNamePlaceholder": "例: Warp",
+      "customCommandPlaceholder": "例: warp",
+      "addCustomTerminal": "追加",
+      "noCustomTerminals": "カスタムターミナルが追加されていません",
+      "browseTerminal": "参照...",
+      "browseTitle": "ターミナルアプリを選択"
     },
     "configDirectoryOverride": "設定ディレクトリの上書き（詳細）",
     "configDirectoryDescription": "WSL などで Claude Code や Codex を使う場合、ここで設定ディレクトリを WSL 側に合わせるとデータを揃えられます。",
