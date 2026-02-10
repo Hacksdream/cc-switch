@@ -50,9 +50,19 @@ pub fn get_opencode_dir() -> PathBuf {
 
 /// 获取 OpenCode 配置文件路径
 ///
-/// 返回 `~/.config/opencode/opencode.json`
+/// 优先查找 `.jsonc` 文件，如果不存在则回退到 `.json`
+/// 返回 `~/.config/opencode/opencode.jsonc` 或 `~/.config/opencode/opencode.json`
 pub fn get_opencode_config_path() -> PathBuf {
-    get_opencode_dir().join("opencode.json")
+    let dir = get_opencode_dir();
+    let jsonc_path = dir.join("opencode.jsonc");
+    let json_path = dir.join("opencode.json");
+
+    // 优先使用 .jsonc 文件
+    if jsonc_path.exists() {
+        jsonc_path
+    } else {
+        json_path
+    }
 }
 
 /// 获取 OpenCode 环境变量文件路径（如果存在）
@@ -63,25 +73,91 @@ pub fn get_opencode_env_path() -> PathBuf {
     get_opencode_dir().join(".env")
 }
 
+/// 剥离 JSONC 注释（单行 // 和多行 /* */）
+///
+/// 保留字符串内的注释语法，只移除真正的注释
+fn strip_jsonc_comments(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut escape_next = false;
+
+    while let Some(c) = chars.next() {
+        if escape_next {
+            result.push(c);
+            escape_next = false;
+            continue;
+        }
+
+        if in_string {
+            result.push(c);
+            if c == '\\' {
+                escape_next = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match c {
+            '"' => {
+                in_string = true;
+                result.push(c);
+            }
+            '/' => {
+                if let Some(&next) = chars.peek() {
+                    if next == '/' {
+                        chars.next();
+                        while let Some(&ch) = chars.peek() {
+                            if ch == '\n' {
+                                break;
+                            }
+                            chars.next();
+                        }
+                    } else if next == '*' {
+                        chars.next();
+                        while let Some(ch) = chars.next() {
+                            if ch == '*' {
+                                if let Some(&'/') = chars.peek() {
+                                    chars.next();
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        result.push(c);
+                    }
+                } else {
+                    result.push(c);
+                }
+            }
+            _ => result.push(c),
+        }
+    }
+
+    result
+}
+
 // ============================================================================
 // Core Read/Write Functions
 // ============================================================================
 
 /// 读取 OpenCode 配置文件
 ///
+/// 支持 JSONC 格式（带注释的 JSON）
 /// 返回完整的配置 JSON 对象
 pub fn read_opencode_config() -> Result<Value, AppError> {
     let path = get_opencode_config_path();
 
     if !path.exists() {
-        // Return empty config with schema
         return Ok(json!({
             "$schema": "https://opencode.ai/config.json"
         }));
     }
 
     let content = std::fs::read_to_string(&path).map_err(|e| AppError::io(&path, e))?;
-    serde_json::from_str(&content).map_err(|e| AppError::json(&path, e))
+    let stripped = strip_jsonc_comments(&content);
+    serde_json::from_str(&stripped).map_err(|e| AppError::json(&path, e))
 }
 
 /// 写入 OpenCode 配置文件（原子写入）

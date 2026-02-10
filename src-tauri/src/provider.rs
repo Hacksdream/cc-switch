@@ -551,7 +551,9 @@ requires_openai_auth = true"#
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenCodeProviderConfig {
     /// AI SDK 包名，如 "@ai-sdk/openai-compatible", "@ai-sdk/anthropic"
-    pub npm: String,
+    /// 内置 providers (如 anthropic, openai) 不需要此字段
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub npm: Option<String>,
 
     /// 供应商名称（可选，用于显示）
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -569,7 +571,7 @@ pub struct OpenCodeProviderConfig {
 impl Default for OpenCodeProviderConfig {
     fn default() -> Self {
         Self {
-            npm: "@ai-sdk/openai-compatible".to_string(),
+            npm: Some("@ai-sdk/openai-compatible".to_string()),
             name: None,
             options: OpenCodeProviderOptions::default(),
             models: HashMap::new(),
@@ -884,7 +886,7 @@ mod tests {
     #[test]
     fn opencode_provider_config_defaults() {
         let config = OpenCodeProviderConfig::default();
-        assert_eq!(config.npm, "@ai-sdk/openai-compatible");
+        assert_eq!(config.npm, Some("@ai-sdk/openai-compatible".to_string()));
         assert!(config.name.is_none());
         assert!(config.models.is_empty());
         assert!(config.options.base_url.is_none());

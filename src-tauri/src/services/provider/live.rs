@@ -416,22 +416,10 @@ pub fn import_default_config(state: &AppState, app_type: AppType) -> Result<bool
             })
         }
         AppType::OpenCode => {
-            // OpenCode uses additive mode - import from live is not the same pattern
-            // For now, return an empty config structure
-            use crate::opencode_config::{get_opencode_config_path, read_opencode_config};
-
-            let config_path = get_opencode_config_path();
-            if !config_path.exists() {
-                return Err(AppError::localized(
-                    "opencode.live.missing",
-                    "OpenCode 配置文件不存在",
-                    "OpenCode configuration file is missing",
-                ));
-            }
-
-            // For OpenCode, we return the full config - but note that OpenCode
-            // uses additive mode, so importing defaults works differently
-            read_opencode_config()?
+            // OpenCode uses additive mode with multiple providers in a single config file.
+            // Instead of creating a single "default" provider, import each provider individually.
+            let imported = import_opencode_providers_from_live(state)?;
+            return Ok(imported > 0);
         }
     };
 
@@ -448,7 +436,7 @@ pub fn import_default_config(state: &AppState, app_type: AppType) -> Result<bool
         .db
         .set_current_provider(app_type.as_str(), &provider.id)?;
 
-    Ok(true) // 真正导入了
+    Ok(true)
 }
 
 /// Write Gemini live configuration with authentication handling
