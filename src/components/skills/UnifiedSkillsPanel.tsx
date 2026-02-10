@@ -1,8 +1,16 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Sparkles, Trash2, ExternalLink } from "lucide-react";
+import { Sparkles, Trash2, ExternalLink, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useInstalledSkills,
   useToggleSkillApp,
@@ -43,6 +51,11 @@ const UnifiedSkillsPanel = React.forwardRef<
     onConfirm: () => void;
   } | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterApp, setFilterApp] = useState<AppId | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "enabled" | "disabled"
+  >("all");
 
   const { data: skills, isLoading } = useInstalledSkills();
   const toggleAppMutation = useToggleSkillApp();
@@ -62,6 +75,32 @@ const UnifiedSkillsPanel = React.forwardRef<
     });
     return counts;
   }, [skills]);
+
+  const filteredSkills = useMemo(() => {
+    if (!skills) return [];
+    return skills.filter((skill) => {
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = skill.name.toLowerCase().includes(query);
+        const matchesDescription = skill.description
+          ?.toLowerCase()
+          .includes(query);
+        if (!matchesName && !matchesDescription) return false;
+      }
+      // App filter
+      if (filterApp !== "all" && !skill.apps[filterApp]) return false;
+      // Status filter
+      const isEnabled =
+        skill.apps.claude ||
+        skill.apps.codex ||
+        skill.apps.gemini ||
+        skill.apps.opencode;
+      if (filterStatus === "enabled" && !isEnabled) return false;
+      if (filterStatus === "disabled" && isEnabled) return false;
+      return true;
+    });
+  }, [skills, searchQuery, filterApp, filterStatus]);
 
   const handleToggleApp = async (id: string, app: AppId, enabled: boolean) => {
     try {
@@ -161,6 +200,55 @@ const UnifiedSkillsPanel = React.forwardRef<
         counts={enabledCounts}
       />
 
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            size={16}
+          />
+          <Input
+            placeholder={t("skills.filter.search")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={filterApp}
+          onValueChange={(v) => setFilterApp(v as AppId | "all")}
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder={t("skills.filter.allApps")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("skills.filter.allApps")}</SelectItem>
+            <SelectItem value="claude">Claude</SelectItem>
+            <SelectItem value="codex">Codex</SelectItem>
+            <SelectItem value="gemini">Gemini</SelectItem>
+            <SelectItem value="opencode">OpenCode</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterStatus}
+          onValueChange={(v) =>
+            setFilterStatus(v as "all" | "enabled" | "disabled")
+          }
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder={t("skills.filter.allStatus")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("skills.filter.allStatus")}</SelectItem>
+            <SelectItem value="enabled">
+              {t("skills.filter.enabled")}
+            </SelectItem>
+            <SelectItem value="disabled">
+              {t("skills.filter.disabled")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-24">
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -178,16 +266,28 @@ const UnifiedSkillsPanel = React.forwardRef<
               {t("skills.noInstalledDescription")}
             </p>
           </div>
+        ) : filteredSkills.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+              <Search size={24} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              {t("skills.noFilterResults")}
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {t("skills.noFilterResultsDescription")}
+            </p>
+          </div>
         ) : (
           <TooltipProvider delayDuration={300}>
             <div className="rounded-xl border border-border-default overflow-hidden">
-              {skills.map((skill, index) => (
+              {filteredSkills.map((skill, index) => (
                 <InstalledSkillListItem
                   key={skill.id}
                   skill={skill}
                   onToggleApp={handleToggleApp}
                   onUninstall={() => handleUninstall(skill)}
-                  isLast={index === skills.length - 1}
+                  isLast={index === filteredSkills.length - 1}
                 />
               ))}
             </div>

@@ -1,7 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Server } from "lucide-react";
+import { Server, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   useAllMcpServers,
@@ -38,6 +46,11 @@ const UnifiedMcpPanel = React.forwardRef<
   const { t } = useTranslation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterApp, setFilterApp] = useState<AppId | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "enabled" | "disabled"
+  >("all");
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -64,6 +77,33 @@ const UnifiedMcpPanel = React.forwardRef<
     });
     return counts;
   }, [serverEntries]);
+
+  const filteredServers = useMemo(() => {
+    return serverEntries.filter(([id, server]) => {
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const name = server.name || id;
+        const description = server.description || "";
+        const matchesSearch =
+          name.toLowerCase().includes(query) ||
+          description.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // App filter
+      if (filterApp !== "all" && !server.apps[filterApp]) {
+        return false;
+      }
+
+      // Status filter
+      const isEnabled = Object.values(server.apps).some(Boolean);
+      if (filterStatus === "enabled" && !isEnabled) return false;
+      if (filterStatus === "disabled" && isEnabled) return false;
+
+      return true;
+    });
+  }, [serverEntries, searchQuery, filterApp, filterStatus]);
 
   const handleToggleApp = async (
     serverId: string,
@@ -138,6 +178,59 @@ const UnifiedMcpPanel = React.forwardRef<
         counts={enabledCounts}
       />
 
+      <div className="flex gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            size={16}
+          />
+          <Input
+            placeholder={t("mcp.unifiedPanel.filter.searchPlaceholder")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={filterApp}
+          onValueChange={(v) => setFilterApp(v as AppId | "all")}
+        >
+          <SelectTrigger className="w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">
+              {t("mcp.unifiedPanel.filter.allApps")}
+            </SelectItem>
+            <SelectItem value="claude">Claude</SelectItem>
+            <SelectItem value="codex">Codex</SelectItem>
+            <SelectItem value="gemini">Gemini</SelectItem>
+            <SelectItem value="opencode">OpenCode</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterStatus}
+          onValueChange={(v) =>
+            setFilterStatus(v as "all" | "enabled" | "disabled")
+          }
+        >
+          <SelectTrigger className="w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">
+              {t("mcp.unifiedPanel.filter.allStatus")}
+            </SelectItem>
+            <SelectItem value="enabled">
+              {t("mcp.unifiedPanel.filter.enabled")}
+            </SelectItem>
+            <SelectItem value="disabled">
+              {t("mcp.unifiedPanel.filter.disabled")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-24">
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -149,20 +242,28 @@ const UnifiedMcpPanel = React.forwardRef<
               <Server size={24} className="text-muted-foreground" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {serverEntries.length === 0
-                ? t("mcp.unifiedPanel.noServers")
-                : t("mcp.unifiedPanel.filter.noResults")}
+              {t("mcp.unifiedPanel.noServers")}
             </h3>
             <p className="text-muted-foreground text-sm">
-              {serverEntries.length === 0
-                ? t("mcp.emptyDescription")
-                : t("mcp.unifiedPanel.filter.noResultsHint")}
+              {t("mcp.emptyDescription")}
+            </p>
+          </div>
+        ) : filteredServers.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+              <Search size={24} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              {t("mcp.unifiedPanel.filter.noResults")}
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {t("mcp.unifiedPanel.filter.noResultsHint")}
             </p>
           </div>
         ) : (
           <TooltipProvider delayDuration={300}>
             <div className="rounded-xl border border-border-default overflow-hidden">
-              {serverEntries.map(([id, server], index) => (
+              {filteredServers.map(([id, server], index) => (
                 <UnifiedMcpListItem
                   key={id}
                   id={id}
@@ -170,7 +271,7 @@ const UnifiedMcpPanel = React.forwardRef<
                   onToggleApp={handleToggleApp}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
-                  isLast={index === serverEntries.length - 1}
+                  isLast={index === filteredServers.length - 1}
                 />
               ))}
             </div>
