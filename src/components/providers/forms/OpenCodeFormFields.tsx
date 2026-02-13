@@ -240,7 +240,17 @@ export function OpenCodeFormFields({
     });
   };
 
-  // Model options handlers
+  // Reserved model keys that are NOT editable as extra properties
+  const RESERVED_MODEL_KEYS = ["name", "limit", "options"];
+
+  // Helper: extract extra properties from model (everything except reserved keys)
+  const getModelExtras = (model: OpenCodeModel): Record<string, unknown> => {
+    return Object.fromEntries(
+      Object.entries(model).filter(([k]) => !RESERVED_MODEL_KEYS.includes(k)),
+    );
+  };
+
+  // Model extra properties handlers (root-level metadata like reasoning, attachment, etc.)
   const handleAddModelOption = (modelKey: string) => {
     const model = models[modelKey];
     const newOptionKey = `option-${Date.now()}`;
@@ -248,21 +258,18 @@ export function OpenCodeFormFields({
       ...models,
       [modelKey]: {
         ...model,
-        options: { ...model.options, [newOptionKey]: "" },
+        [newOptionKey]: "",
       },
     });
   };
 
   const handleRemoveModelOption = (modelKey: string, optionKey: string) => {
     const model = models[modelKey];
-    const newOptions = { ...model.options };
-    delete newOptions[optionKey];
+    const updated = { ...model };
+    delete updated[optionKey];
     onModelsChange({
       ...models,
-      [modelKey]: {
-        ...model,
-        options: Object.keys(newOptions).length > 0 ? newOptions : undefined,
-      },
+      [modelKey]: updated,
     });
   };
 
@@ -272,15 +279,23 @@ export function OpenCodeFormFields({
     newKey: string,
   ) => {
     if (!newKey.trim() || oldKey === newKey) return;
+    if (RESERVED_MODEL_KEYS.includes(newKey)) return;
     const model = models[modelKey];
-    const newOptions: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(model.options || {})) {
-      if (k === oldKey) newOptions[newKey] = v;
-      else newOptions[k] = v;
+    const extras = getModelExtras(model);
+    const newExtras: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(extras)) {
+      if (k === oldKey) newExtras[newKey] = v;
+      else newExtras[k] = v;
     }
+    const updated: OpenCodeModel = {
+      name: model.name,
+      ...(model.limit ? { limit: model.limit } : {}),
+      ...(model.options ? { options: model.options } : {}),
+      ...newExtras,
+    };
     onModelsChange({
       ...models,
-      [modelKey]: { ...model, options: newOptions },
+      [modelKey]: updated,
     });
   };
 
@@ -300,7 +315,7 @@ export function OpenCodeFormFields({
       ...models,
       [modelKey]: {
         ...model,
-        options: { ...model.options, [optionKey]: parsedValue },
+        [optionKey]: parsedValue,
       },
     });
   };
@@ -559,10 +574,9 @@ export function OpenCodeFormFields({
                   </Button>
                 </div>
 
-                {/* Expanded model options */}
                 {expandedModels.has(key) && (
                   <div className="ml-9 pl-4 border-l-2 border-muted space-y-2">
-                    {Object.keys(model.options || {}).length === 0 ? (
+                    {Object.keys(getModelExtras(model)).length === 0 ? (
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-muted-foreground py-1">
                           {t("opencode.noModelOptions", {
@@ -581,7 +595,7 @@ export function OpenCodeFormFields({
                       </div>
                     ) : (
                       <>
-                        {Object.entries(model.options || {}).map(
+                        {Object.entries(getModelExtras(model)).map(
                           ([optKey, optValue]) => (
                             <div
                               key={optKey}

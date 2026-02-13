@@ -1,8 +1,10 @@
-use crate::config::write_json_file;
+use crate::config::{write_json_file, write_text_file};
 use crate::error::AppError;
 use crate::provider::OpenCodeProviderConfig;
 use crate::settings::get_opencode_override_dir;
 use indexmap::IndexMap;
+use jsonc_parser::cst::{CstInputValue, CstRootNode};
+use jsonc_parser::ParseOptions;
 use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 
@@ -33,8 +35,6 @@ pub fn get_opencode_env_path() -> PathBuf {
     get_opencode_dir().join(".env")
 }
 
-/// Strip JSONC comments (single-line // and multi-line /* */)
-/// Preserves comment syntax inside strings.
 fn strip_jsonc_comments(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
@@ -97,6 +97,117 @@ fn strip_jsonc_comments(input: &str) -> String {
     result
 }
 
+// ---------------------------------------------------------------------------
+// Raw file I/O (preserves original content for CST round-trip editing)
+// ---------------------------------------------------------------------------
+
+fn read_config_raw() -> Result<String, AppError> {
+    let path = get_opencode_config_path();
+    if !path.exists() {
+        return Ok(String::from("{}"));
+    }
+    std::fs::read_to_string(&path).map_err(|e| AppError::io(&path, e))
+}
+
+fn write_config_raw(content: &str) -> Result<(), AppError> {
+    let path = get_opencode_config_path();
+    write_text_file(&path, content)?;
+    log::debug!("OpenCode config written to {path:?}");
+    Ok(())
+}
+
+fn parse_cst(raw: &str) -> Result<CstRootNode, AppError> {
+    CstRootNode::parse(raw, &ParseOptions::default())
+        .map_err(|e| AppError::Message(format!("Failed to parse JSONC config: {e:?}")))
+}
+
+pub fn serde_value_to_cst(value: &Value) -> CstInputValue {
+    match value {
+        Value::Null => CstInputValue::Null,
+        Value::Bool(b) => CstInputValue::Bool(*b),
+        Value::Number(n) => CstInputValue::Number(n.to_string()),
+        Value::String(s) => CstInputValue::String(s.clone()),
+        Value::Array(arr) => CstInputValue::Array(arr.iter().map(serde_value_to_cst).collect()),
+        Value::Object(obj) => CstInputValue::Object(
+            obj.iter()
+                .map(|(k, v)| (k.clone(), serde_value_to_cst(v)))
+                .collect(),
+        ),
+    }
+}
+
+/// Deep-merge a `serde_json::Value::Object` into an existing CST object.
+///
+/// For each key in `source`:
+///   - If both the CST and source values are objects → recurse (preserves comments inside)
+///   - Otherwise → shallow `set_value()` (replace leaf values)
+///   - New keys → append
+///
+/// Keys present in CST but absent from `source` are left untouched (preserves
+/// unknown fields like `google_auth`).
+pub fn deep_merge_cst_object(
+    cst_obj: &jsonc_parser::cst::CstObject,
+    source: &serde_json::Map<String, Value>,
+) {
+    for (key, value) in source {
+        match value {
+            Value::Object(child_map) => {
+                // Both sides are objects → recurse to preserve inner comments
+                let nested = cst_obj.object_value_or_set(key);
+                deep_merge_cst_object(&nested, child_map);
+            }
+            _ => {
+                // Leaf value → shallow replace
+                let cst_value = serde_value_to_cst(value);
+                if let Some(existing) = cst_obj.get(key) {
+                    existing.set_value(cst_value);
+                } else {
+                    cst_obj.append(key, cst_value);
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CST helpers — set/remove properties while preserving comments & formatting
+// ---------------------------------------------------------------------------
+
+fn cst_set_object_property(section: &str, key: &str, value: &Value) -> Result<(), AppError> {
+    let raw = read_config_raw()?;
+    let root = parse_cst(&raw)?;
+    let root_obj = root.object_value_or_set();
+    let section_obj = root_obj.object_value_or_set(section);
+
+    let cst_value = serde_value_to_cst(value);
+
+    if let Some(existing) = section_obj.get(key) {
+        existing.set_value(cst_value);
+    } else {
+        section_obj.append(key, cst_value);
+    }
+
+    write_config_raw(&root.to_string())
+}
+
+fn cst_remove_object_property(section: &str, key: &str) -> Result<(), AppError> {
+    let raw = read_config_raw()?;
+    let root = parse_cst(&raw)?;
+    let root_obj = root.object_value_or_set();
+
+    if let Some(section_obj) = root_obj.object_value(section) {
+        if let Some(prop) = section_obj.get(key) {
+            prop.remove();
+        }
+    }
+
+    write_config_raw(&root.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Read operations (parse into serde_json::Value — strips comments)
+// ---------------------------------------------------------------------------
+
 pub fn read_opencode_config() -> Result<Value, AppError> {
     let path = get_opencode_config_path();
 
@@ -111,6 +222,7 @@ pub fn read_opencode_config() -> Result<Value, AppError> {
     serde_json::from_str(&stripped).map_err(|e| AppError::json(&path, e))
 }
 
+#[allow(dead_code)]
 pub fn write_opencode_config(config: &Value) -> Result<(), AppError> {
     let path = get_opencode_config_path();
     write_json_file(&path, config)?;
@@ -118,6 +230,10 @@ pub fn write_opencode_config(config: &Value) -> Result<(), AppError> {
     log::debug!("OpenCode config written to {path:?}");
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Provider operations (CST-based — preserves comments)
+// ---------------------------------------------------------------------------
 
 pub fn get_providers() -> Result<Map<String, Value>, AppError> {
     let config = read_opencode_config()?;
@@ -129,30 +245,11 @@ pub fn get_providers() -> Result<Map<String, Value>, AppError> {
 }
 
 pub fn set_provider(id: &str, config: Value) -> Result<(), AppError> {
-    let mut full_config = read_opencode_config()?;
-
-    if full_config.get("provider").is_none() {
-        full_config["provider"] = json!({});
-    }
-
-    if let Some(providers) = full_config
-        .get_mut("provider")
-        .and_then(|v| v.as_object_mut())
-    {
-        providers.insert(id.to_string(), config);
-    }
-
-    write_opencode_config(&full_config)
+    cst_set_object_property("provider", id, &config)
 }
 
 pub fn remove_provider(id: &str) -> Result<(), AppError> {
-    let mut config = read_opencode_config()?;
-
-    if let Some(providers) = config.get_mut("provider").and_then(|v| v.as_object_mut()) {
-        providers.remove(id);
-    }
-
-    write_opencode_config(&config)
+    cst_remove_object_property("provider", id)
 }
 
 pub fn get_typed_providers() -> Result<IndexMap<String, OpenCodeProviderConfig>, AppError> {
@@ -178,6 +275,10 @@ pub fn set_typed_provider(id: &str, config: &OpenCodeProviderConfig) -> Result<(
     set_provider(id, value)
 }
 
+// ---------------------------------------------------------------------------
+// MCP operations (CST-based — preserves comments)
+// ---------------------------------------------------------------------------
+
 pub fn get_mcp_servers() -> Result<Map<String, Value>, AppError> {
     let config = read_opencode_config()?;
     Ok(config
@@ -188,79 +289,90 @@ pub fn get_mcp_servers() -> Result<Map<String, Value>, AppError> {
 }
 
 pub fn set_mcp_server(id: &str, config: Value) -> Result<(), AppError> {
-    let mut full_config = read_opencode_config()?;
-
-    if full_config.get("mcp").is_none() {
-        full_config["mcp"] = json!({});
-    }
-
-    if let Some(mcp) = full_config.get_mut("mcp").and_then(|v| v.as_object_mut()) {
-        mcp.insert(id.to_string(), config);
-    }
-
-    write_opencode_config(&full_config)
+    cst_set_object_property("mcp", id, &config)
 }
 
 pub fn remove_mcp_server(id: &str) -> Result<(), AppError> {
-    let mut config = read_opencode_config()?;
-
-    if let Some(mcp) = config.get_mut("mcp").and_then(|v| v.as_object_mut()) {
-        mcp.remove(id);
-    }
-
-    write_opencode_config(&config)
+    cst_remove_object_property("mcp", id)
 }
 
+// ---------------------------------------------------------------------------
+// Plugin operations (CST-based — preserves comments)
+// ---------------------------------------------------------------------------
+
 pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
-    let mut config = read_opencode_config()?;
+    let raw = read_config_raw()?;
+    let root = parse_cst(&raw)?;
+    let root_obj = root.object_value_or_set();
 
-    let plugins = config.get_mut("plugin").and_then(|v| v.as_array_mut());
+    let plugins = root_obj.array_value_or_set("plugin");
 
-    match plugins {
-        Some(arr) => {
-            if plugin_name.starts_with("oh-my-opencode")
-                && !plugin_name.starts_with("oh-my-opencode-slim")
-            {
-                arr.retain(|v| {
-                    v.as_str()
-                        .map(|s| !s.starts_with("oh-my-opencode-slim"))
-                        .unwrap_or(true)
-                });
-            }
-
-            let already_exists = arr.iter().any(|v| v.as_str() == Some(plugin_name));
-            if !already_exists {
-                arr.push(Value::String(plugin_name.to_string()));
-            }
-        }
-        None => {
-            config["plugin"] = json!([plugin_name]);
+    // If adding oh-my-opencode (non-slim), remove any slim variant first
+    if plugin_name.starts_with("oh-my-opencode") && !plugin_name.starts_with("oh-my-opencode-slim")
+    {
+        let to_remove: Vec<_> = plugins
+            .elements()
+            .into_iter()
+            .filter(|el| {
+                el.as_string_lit()
+                    .and_then(|s| s.decoded_value().ok())
+                    .map(|s| s.starts_with("oh-my-opencode-slim"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        for node in to_remove {
+            node.remove();
         }
     }
 
-    write_opencode_config(&config)
+    // Check for duplicates
+    let already_exists = plugins.elements().iter().any(|el| {
+        el.as_string_lit()
+            .and_then(|s| s.decoded_value().ok())
+            .map(|s| s == plugin_name)
+            .unwrap_or(false)
+    });
+
+    if !already_exists {
+        plugins.append(CstInputValue::String(plugin_name.to_string()));
+    }
+
+    write_config_raw(&root.to_string())
 }
 
 pub fn remove_plugin_by_prefix(prefix: &str) -> Result<(), AppError> {
-    let mut config = read_opencode_config()?;
+    let raw = read_config_raw()?;
+    let root = parse_cst(&raw)?;
+    let root_obj = root.object_value_or_set();
 
-    if let Some(arr) = config.get_mut("plugin").and_then(|v| v.as_array_mut()) {
-        arr.retain(|v| {
-            v.as_str()
-                .map(|s| {
-                    if !s.starts_with(prefix) {
-                        return true; // Keep: doesn't match prefix at all
-                    }
-                    let rest = &s[prefix.len()..];
-                    rest.starts_with('-')
-                })
-                .unwrap_or(true)
-        });
+    if let Some(plugins) = root_obj.array_value("plugin") {
+        let to_remove: Vec<_> = plugins
+            .elements()
+            .into_iter()
+            .filter(|el| {
+                el.as_string_lit()
+                    .and_then(|s| s.decoded_value().ok())
+                    .map(|s| {
+                        if !s.starts_with(prefix) {
+                            return false;
+                        }
+                        let rest = &s[prefix.len()..];
+                        !rest.starts_with('-')
+                    })
+                    .unwrap_or(false)
+            })
+            .collect();
+        for node in to_remove {
+            node.remove();
+        }
 
-        if arr.is_empty() {
-            config.as_object_mut().map(|obj| obj.remove("plugin"));
+        // Remove empty plugin array
+        if plugins.elements().is_empty() {
+            if let Some(prop) = root_obj.get("plugin") {
+                prop.remove();
+            }
         }
     }
 
-    write_opencode_config(&config)
+    write_config_raw(&root.to_string())
 }

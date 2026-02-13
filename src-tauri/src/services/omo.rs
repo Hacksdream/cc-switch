@@ -1,4 +1,4 @@
-use crate::config::write_json_file;
+use crate::config::write_text_file;
 use crate::database::OmoGlobalConfig;
 use crate::error::AppError;
 use crate::opencode_config::get_opencode_dir;
@@ -175,11 +175,38 @@ impl OmoService {
             std::fs::create_dir_all(parent).map_err(|e| AppError::io(parent, e))?;
         }
 
-        write_json_file(&config_path, &merged)?;
+        // Use CST round-trip editing to preserve comments and unknown fields
+        Self::write_config_with_cst(&config_path, &merged)?;
 
         crate::opencode_config::add_plugin("oh-my-opencode@latest")?;
 
         log::info!("OMO config written to {config_path:?}");
+        Ok(())
+    }
+
+    /// CST-based config write: reads existing file, updates only known keys,
+    /// preserves all comments and unknown fields.
+    fn write_config_with_cst(path: &std::path::Path, merged: &Value) -> Result<(), AppError> {
+        use crate::opencode_config::deep_merge_cst_object;
+        use jsonc_parser::cst::CstRootNode;
+        use jsonc_parser::ParseOptions;
+
+        let raw = if path.exists() {
+            std::fs::read_to_string(path).map_err(|e| AppError::io(path, e))?
+        } else {
+            "{}".to_string()
+        };
+
+        let root = CstRootNode::parse(&raw, &ParseOptions::default())
+            .map_err(|e| AppError::Message(format!("Failed to parse JSONC: {e:?}")))?;
+        let obj = root.object_value_or_set();
+
+        // Deep merge: recursively updates nested objects, preserving comments
+        if let Some(merged_obj) = merged.as_object() {
+            deep_merge_cst_object(&obj, merged_obj);
+        }
+
+        write_text_file(path, &root.to_string())?;
         Ok(())
     }
 
