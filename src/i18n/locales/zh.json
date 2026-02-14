@@ -938,8 +938,11 @@
       "url": "URL",
       "urlPlaceholder": "https://api.example.com/mcp",
       "urlRequired": "请输入 URL",
+      "token": "Bearer Token",
+      "tokenPlaceholder": "在此粘贴您的 Token",
+      "tokenHint": "用于安全访问的认证令牌，将作为 Authorization: Bearer <token> 请求头发送。",
       "headers": "请求头（可选）",
-      "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
+      "headersPlaceholder": "Content-Type: application/json\nX-Custom-Header: value",
       "preview": "配置预览",
       "apply": "应用配置"
     },

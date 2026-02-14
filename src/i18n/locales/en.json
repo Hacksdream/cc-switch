@@ -938,8 +938,11 @@
       "url": "URL",
       "urlPlaceholder": "https://api.example.com/mcp",
       "urlRequired": "Please enter URL",
+      "token": "Bearer Token",
+      "tokenPlaceholder": "Paste your token here",
+      "tokenHint": "Authentication token for secure access. Will be sent as Authorization: Bearer <token> header.",
       "headers": "Headers (optional)",
-      "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
+      "headersPlaceholder": "Content-Type: application/json\nX-Custom-Header: value",
       "preview": "Configuration Preview",
       "apply": "Apply Configuration"
     },

@@ -91,6 +91,7 @@ const McpWizardModal: React.FC<McpWizardModalProps> = ({
   const [wizardEnv, setWizardEnv] = useState("");
   // http 和 sse 字段
   const [wizardUrl, setWizardUrl] = useState("");
+  const [wizardToken, setWizardToken] = useState("");
   const [wizardHeaders, setWizardHeaders] = useState("");
 
   // 生成预览 JSON
@@ -121,12 +122,17 @@ const McpWizardModal: React.FC<McpWizardModalProps> = ({
       // http 和 sse 类型必需字段
       config.url = wizardUrl.trim();
 
-      // 可选字段
+      // 可选字段：合并 token 和自定义 headers
+      const headers: Record<string, string> = {};
+      if (wizardToken.trim()) {
+        headers["Authorization"] = `Bearer ${wizardToken.trim()}`;
+      }
       if (wizardHeaders.trim()) {
-        const headers = parseHeadersText(wizardHeaders);
-        if (Object.keys(headers).length > 0) {
-          config.headers = headers;
-        }
+        const customHeaders = parseHeadersText(wizardHeaders);
+        Object.assign(headers, customHeaders);
+      }
+      if (Object.keys(headers).length > 0) {
+        config.headers = headers;
       }
     }
 
@@ -160,6 +166,7 @@ const McpWizardModal: React.FC<McpWizardModalProps> = ({
     setWizardArgs("");
     setWizardEnv("");
     setWizardUrl("");
+    setWizardToken("");
     setWizardHeaders("");
     onClose();
   };
@@ -189,13 +196,26 @@ const McpWizardModal: React.FC<McpWizardModalProps> = ({
         headersCandidate && typeof headersCandidate === "object"
           ? headersCandidate
           : undefined;
-      setWizardHeaders(
-        headers
-          ? Object.entries(headers)
-              .map(([k, v]) => `${k}: ${v ?? ""}`)
-              .join("\n")
-          : "",
-      );
+      if (headers) {
+        const authValue = headers["Authorization"] ?? headers["authorization"];
+        if (authValue && authValue.startsWith("Bearer ")) {
+          setWizardToken(authValue.slice(7));
+        } else {
+          setWizardToken("");
+        }
+        // 过滤掉 Authorization header，避免与 token 字段重复
+        const filteredEntries = Object.entries(headers).filter(
+          ([k]) => k.toLowerCase() !== "authorization",
+        );
+        setWizardHeaders(
+          filteredEntries.length > 0
+            ? filteredEntries.map(([k, v]) => `${k}: ${v ?? ""}`).join("\n")
+            : "",
+        );
+      } else {
+        setWizardToken("");
+        setWizardHeaders("");
+      }
       setWizardCommand("");
       setWizardArgs("");
       setWizardEnv("");
@@ -380,6 +400,24 @@ const McpWizardModal: React.FC<McpWizardModalProps> = ({
                   />
                 </div>
 
+                {/* Bearer Token */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-foreground">
+                    {t("mcp.wizard.token")}
+                  </label>
+                  <Input
+                    type="password"
+                    value={wizardToken}
+                    onChange={(e) => setWizardToken(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t("mcp.wizard.tokenPlaceholder")}
+                    className="font-mono"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("mcp.wizard.tokenHint")}
+                  </p>
+                </div>
+
                 {/* Headers */}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-foreground">
@@ -402,6 +440,7 @@ const McpWizardModal: React.FC<McpWizardModalProps> = ({
             wizardArgs ||
             wizardEnv ||
             wizardUrl ||
+            wizardToken ||
             wizardHeaders) && (
             <div className="space-y-2 border-t border-border-default pt-4">
               <h3 className="text-sm font-medium text-foreground">

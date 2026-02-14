@@ -938,8 +938,11 @@
       "url": "URL",
       "urlPlaceholder": "https://api.example.com/mcp",
       "urlRequired": "URL を入力してください",
+      "token": "Bearer Token",
+      "tokenPlaceholder": "トークンを貼り付けてください",
+      "tokenHint": "安全なアクセスのための認証トークン。Authorization: Bearer <token> ヘッダーとして送信されます。",
       "headers": "ヘッダー（任意）",
-      "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
+      "headersPlaceholder": "Content-Type: application/json\nX-Custom-Header: value",
       "preview": "設定プレビュー",
       "apply": "設定を反映"
     },
