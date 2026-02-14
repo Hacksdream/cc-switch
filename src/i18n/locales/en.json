@@ -946,6 +946,23 @@
       "preview": "Configuration Preview",
       "apply": "Apply Configuration"
     },
+    "connectivity": {
+      "test": "Test Connectivity",
+      "testing": "Testing...",
+      "success": "Connection successful ({{latency}}ms): {{message}}",
+      "failed": "Connection failed: {{message}}"
+    },
+    "importJson": {
+      "button": "Import JSON",
+      "title": "Import MCP Servers",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "selected": "{{count}} server(s) selected",
+      "import": "Import Selected",
+      "success": "Successfully imported {{count}} MCP server(s)",
+      "empty": "No MCP servers found in the file",
+      "parseError": "Failed to parse JSON file"
+    },
     "id": "Identifier (unique)",
     "type": "Type",
     "command": "Command",

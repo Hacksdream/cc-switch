@@ -16,6 +16,7 @@ import {
   Download,
   FolderArchive,
   Search,
+  FileUp,
 } from "lucide-react";
 import type { Provider, VisibleApps } from "@/types";
 import type { EnvConflict } from "@/types/env";
@@ -846,6 +847,15 @@ function App() {
                 >
                   <Download className="w-4 h-4 mr-2" />
                   {t("mcp.importExisting")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => mcpPanelRef.current?.openJsonImport()}
+                  className="hover:bg-black/5 dark:hover:bg-white/5"
+                >
+                  <FileUp className="w-4 h-4 mr-2" />
+                  {t("mcp.importJson.button")}
                 </Button>
                 <Button
                   variant="ghost"

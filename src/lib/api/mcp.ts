@@ -124,6 +124,19 @@ export const mcpApi = {
    * 从所有应用导入 MCP 服务器
    */
   async importFromApps(): Promise<number> {
-    return await invoke("import_mcp_from_apps");
+    return invoke("import_mcp_from_apps");
+  },
+
+  async testConnectivity(server: McpServerSpec): Promise<{
+    ok: boolean;
+    message: string;
+  }> {
+    return invoke("test_mcp_connectivity", { server });
+  },
+
+  async parseMcpJsonFile(
+    filePath: string,
+  ): Promise<{ name: string; server: McpServerSpec }[]> {
+    return invoke("parse_mcp_json_file", { filePath });
   },
 };

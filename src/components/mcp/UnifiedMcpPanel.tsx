@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Server, Search } from "lucide-react";
+import { Server, Search, Plug, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,8 +16,9 @@ import {
   useToggleMcpApp,
   useDeleteMcpServer,
   useImportMcpFromApps,
+  useTestMcpConnectivity,
 } from "@/hooks/useMcp";
-import type { McpServer } from "@/types";
+import type { McpServer, McpServerSpec } from "@/types";
 import type { AppId } from "@/lib/api/types";
 import McpFormModal from "./McpFormModal";
 import { ConfirmDialog } from "../ConfirmDialog";
@@ -29,6 +30,9 @@ import { APP_IDS } from "@/config/appConfig";
 import { AppCountBar } from "@/components/common/AppCountBar";
 import { AppToggleGroup } from "@/components/common/AppToggleGroup";
 import { ListItemRow } from "@/components/common/ListItemRow";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import { mcpApi } from "@/lib/api/mcp";
+import { McpImportPreviewModal } from "./McpImportPreviewModal";
 
 interface UnifiedMcpPanelProps {
   onOpenChange: (open: boolean) => void;
@@ -37,6 +41,7 @@ interface UnifiedMcpPanelProps {
 export interface UnifiedMcpPanelHandle {
   openAdd: () => void;
   openImport: () => void;
+  openJsonImport: () => void;
 }
 
 const UnifiedMcpPanel = React.forwardRef<
@@ -62,6 +67,10 @@ const UnifiedMcpPanel = React.forwardRef<
   const toggleAppMutation = useToggleMcpApp();
   const deleteServerMutation = useDeleteMcpServer();
   const importMutation = useImportMcpFromApps();
+  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
+  const [importedServers, setImportedServers] = useState<
+    { name: string; server: McpServerSpec }[]
+  >([]);
 
   const serverEntries = useMemo((): Array<[string, McpServer]> => {
     if (!serversMap) return [];
@@ -144,9 +153,47 @@ const UnifiedMcpPanel = React.forwardRef<
     }
   };
 
+  const handleJsonImport = async () => {
+    try {
+      const selected = await openFileDialog({
+        multiple: false,
+        filters: [{ name: "JSON", extensions: ["json", "jsonc"] }],
+      });
+      if (!selected) return;
+      const filePath = selected;
+      const servers = await mcpApi.parseMcpJsonFile(filePath);
+      if (servers.length === 0) {
+        toast.info(t("mcp.importJson.empty"));
+        return;
+      }
+      setImportedServers(servers);
+      setIsImportPreviewOpen(true);
+    } catch (e) {
+      toast.error(t("mcp.importJson.parseError"));
+    }
+  };
+
+  const handleImportConfirm = async (servers: McpServer[]) => {
+    let count = 0;
+    for (const server of servers) {
+      try {
+        await mcpApi.upsertUnifiedServer(server);
+        count++;
+      } catch {
+        // skip failed entries
+      }
+    }
+    if (count > 0) {
+      toast.success(t("mcp.importJson.success", { count }));
+    }
+    setIsImportPreviewOpen(false);
+    setImportedServers([]);
+  };
+
   React.useImperativeHandle(ref, () => ({
     openAdd: handleAdd,
     openImport: handleImport,
+    openJsonImport: handleJsonImport,
   }));
 
   const handleDelete = (id: string) => {
@@ -304,6 +351,13 @@ const UnifiedMcpPanel = React.forwardRef<
           onCancel={() => setConfirmDialog(null)}
         />
       )}
+
+      <McpImportPreviewModal
+        isOpen={isImportPreviewOpen}
+        onClose={() => setIsImportPreviewOpen(false)}
+        servers={importedServers}
+        onImport={handleImportConfirm}
+      />
     </div>
   );
 });
@@ -328,6 +382,21 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
   isLast,
 }) => {
   const { t } = useTranslation();
+  const testMutation = useTestMcpConnectivity();
+  const handleTest = async () => {
+    try {
+      const result = await testMutation.mutateAsync(server.server);
+      if (result.ok) {
+        toast.success(
+          t("mcp.connectivity.success", { message: result.message }),
+        );
+      } else {
+        toast.error(t("mcp.connectivity.failed", { message: result.message }));
+      }
+    } catch (err) {
+      toast.error(t("mcp.connectivity.failed", { message: String(err) }));
+    }
+  };
   const name = server.name || id;
   const description = server.description || "";
 
@@ -385,6 +454,21 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
       />
 
       <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={handleTest}
+          disabled={testMutation.isPending}
+          title={t("mcp.connectivity.test")}
+        >
+          {testMutation.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Plug size={14} />
+          )}
+        </Button>
         <Button
           type="button"
           variant="ghost"

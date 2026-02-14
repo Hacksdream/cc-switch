@@ -2,11 +2,10 @@
 
 use indexmap::IndexMap;
 use std::collections::HashMap;
-
 use serde::Serialize;
 use tauri::State;
 
-use crate::app_config::AppType;
+use crate::app_config::{AppType, McpApps, McpServer};
 use crate::claude_mcp;
 use crate::services::McpService;
 use crate::store::AppState;
@@ -95,7 +94,7 @@ pub async fn upsert_mcp_server_in_config(
         existing
     } else {
         // 创建新服务器
-        let mut apps = crate::app_config::McpApps::default();
+        let mut apps = McpApps::default();
         apps.set_enabled_for(&app_ty, true);
 
         // 尝试从 spec 中提取 name，否则使用 id
@@ -157,8 +156,6 @@ pub async fn set_mcp_enabled(
 // v3.7.0 新增：统一 MCP 管理命令
 // ============================================================================
 
-use crate::app_config::McpServer;
-
 /// 获取所有 MCP 服务器（统一结构）
 #[tauri::command]
 pub async fn get_mcp_servers(
@@ -203,4 +200,298 @@ pub async fn import_mcp_from_apps(state: State<'_, AppState>) -> Result<usize, S
     total += McpService::import_from_gemini(&state).unwrap_or(0);
     total += McpService::import_from_opencode(&state).unwrap_or(0);
     Ok(total)
+}
+
+/// MCP 连通性检测结果
+#[derive(Debug, Serialize)]
+pub struct McpConnectivityResult {
+    pub ok: bool,
+    pub message: String,
+}
+
+/// 测试 MCP 服务器连通性
+#[tauri::command]
+pub async fn test_mcp_connectivity(
+    server: serde_json::Value,
+) -> Result<McpConnectivityResult, String> {
+    let server_type = server
+        .get("type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("stdio");
+
+    match server_type {
+        "stdio" => {
+            let command = server
+                .get("command")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if command.is_empty() {
+                return Ok(McpConnectivityResult {
+                    ok: false,
+                    message: "No command specified".to_string(),
+                });
+            }
+            // 检查命令是否存在
+            let which_cmd = if cfg!(target_os = "windows") {
+                "where"
+            } else {
+                "which"
+            };
+            match std::process::Command::new(which_cmd).arg(command).output() {
+                Ok(output) if output.status.success() => {
+                    let path = String::from_utf8_lossy(&output.stdout)
+                        .trim()
+                        .lines()
+                        .next()
+                        .unwrap_or("")
+                        .to_string();
+                    Ok(McpConnectivityResult {
+                        ok: true,
+                        message: format!("Command found: {}", path),
+                    })
+                }
+                Ok(_) => Ok(McpConnectivityResult {
+                    ok: false,
+                    message: format!("Command not found: {}", command),
+                }),
+                Err(e) => Ok(McpConnectivityResult {
+                    ok: false,
+                    message: format!("Failed to check command: {}", e),
+                }),
+            }
+        }
+        "http" | "sse" => {
+            let url = server
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if url.is_empty() {
+                return Ok(McpConnectivityResult {
+                    ok: false,
+                    message: "No URL specified".to_string(),
+                });
+            }
+            // 发送 HEAD 请求检测 URL 可达性
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .map_err(|e| e.to_string())?;
+
+            // 构建请求，附加 headers
+            let mut request = client.head(url);
+            if let Some(headers_obj) = server.get("headers").and_then(|v| v.as_object()) {
+                for (k, v) in headers_obj {
+                    if let Some(val) = v.as_str() {
+                        if let (Ok(name), Ok(value)) = (
+                            reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                            reqwest::header::HeaderValue::from_str(val),
+                        ) {
+                            request = request.header(name, value);
+                        }
+                    }
+                }
+            }
+
+            match request.send().await {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.is_success() || status == 405 || status == 426 {
+                        // 405 Method Not Allowed (HEAD not supported) 和 426 Upgrade Required (SSE) 也算可达
+                        Ok(McpConnectivityResult {
+                            ok: true,
+                            message: format!("Server reachable (HTTP {})", status.as_u16()),
+                        })
+                    } else if status == 401 || status == 403 {
+                        Ok(McpConnectivityResult {
+                            ok: true,
+                            message: format!(
+                                "Server reachable but auth required (HTTP {})",
+                                status.as_u16()
+                            ),
+                        })
+                    } else {
+                        Ok(McpConnectivityResult {
+                            ok: false,
+                            message: format!("Server returned HTTP {}", status.as_u16()),
+                        })
+                    }
+                }
+                Err(e) => {
+                    let msg = if e.is_timeout() {
+                        "Connection timed out (10s)".to_string()
+                    } else if e.is_connect() {
+                        format!("Connection refused: {}", url)
+                    } else {
+                        format!("Request failed: {}", e)
+                    };
+                    Ok(McpConnectivityResult {
+                        ok: false,
+                        message: msg,
+                    })
+                }
+            }
+        }
+        _ => Ok(McpConnectivityResult {
+            ok: false,
+            message: format!("Unknown server type: {}", server_type),
+        }),
+    }
+}
+
+/// 解析 JSON 文件中的 MCP 服务器配置（自动检测格式）
+#[derive(Debug, Serialize)]
+pub struct ParsedMcpEntry {
+    pub name: String,
+    pub server: serde_json::Value,
+}
+
+#[tauri::command]
+pub async fn parse_mcp_json_file(path: String) -> Result<Vec<ParsedMcpEntry>, String> {
+    let content = std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))?;
+
+    let obj = json.as_object().ok_or("JSON root must be an object")?;
+
+    // 格式自动检测
+    // 1. OpenCode 格式: { mcp: { servers: { name: { type: "local"|"remote", ... } } } }
+    if let Some(mcp) = obj.get("mcp").and_then(|v| v.as_object()) {
+        if let Some(servers) = mcp.get("servers").and_then(|v| v.as_object()) {
+            return Ok(convert_opencode_format(servers));
+        }
+    }
+
+    // 2. CC-Switch 内部格式: entries 含 server + apps 字段
+    if obj.values().any(|v| v.get("server").is_some() && v.get("apps").is_some()) {
+        return Ok(obj
+            .iter()
+            .filter_map(|(name, entry)| {
+                entry.get("server").map(|server| ParsedMcpEntry {
+                    name: name.clone(),
+                    server: server.clone(),
+                })
+            })
+            .collect());
+    }
+
+    // 3. Codex 格式: { mcp_servers: { name: { ... } } }
+    if let Some(servers) = obj.get("mcp_servers").and_then(|v| v.as_object()) {
+        return Ok(convert_codex_format(servers));
+    }
+
+    // 4. Claude/Gemini/标准 MCP 格式: { mcpServers: { name: { ... } } }
+    if let Some(servers) = obj.get("mcpServers").and_then(|v| v.as_object()) {
+        return Ok(convert_standard_format(servers));
+    }
+
+    // 5. 裸 map: 顶层对象的值含 command 或 url 字段
+    if obj.values().any(|v| v.get("command").is_some() || v.get("url").is_some()) {
+        return Ok(convert_standard_format(obj));
+    }
+
+    Err("Unrecognized MCP configuration format".to_string())
+}
+
+/// 转换标准 MCP 格式 (Claude/Gemini/MCP Router)
+fn convert_standard_format(
+    servers: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<ParsedMcpEntry> {
+    servers
+        .iter()
+        .map(|(name, spec)| {
+            let mut server = spec.clone();
+            // 确保有 type 字段
+            if server.get("type").is_none() {
+                let obj = server.as_object_mut().unwrap();
+                if obj.contains_key("command") {
+                    obj.insert("type".to_string(), serde_json::json!("stdio"));
+                } else if obj.contains_key("url") {
+                    obj.insert("type".to_string(), serde_json::json!("http"));
+                }
+            }
+            ParsedMcpEntry {
+                name: name.clone(),
+                server,
+            }
+        })
+        .collect()
+}
+
+/// 转换 OpenCode 格式 (local → stdio, remote → http/sse)
+fn convert_opencode_format(
+    servers: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<ParsedMcpEntry> {
+    servers
+        .iter()
+        .map(|(name, spec)| {
+            let oc_type = spec.get("type").and_then(|v| v.as_str()).unwrap_or("local");
+            let mut server = serde_json::Map::new();
+
+            match oc_type {
+                "local" => {
+                    server.insert("type".to_string(), serde_json::json!("stdio"));
+                    // OpenCode 的 command 是 string[] (合并了 cmd + args)
+                    if let Some(cmd_arr) = spec.get("command").and_then(|v| v.as_array()) {
+                        if let Some(first) = cmd_arr.first().and_then(|v| v.as_str()) {
+                            server.insert("command".to_string(), serde_json::json!(first));
+                        }
+                        if cmd_arr.len() > 1 {
+                            let args: Vec<&serde_json::Value> = cmd_arr[1..].iter().collect();
+                            server.insert("args".to_string(), serde_json::json!(args));
+                        }
+                    }
+                    if let Some(env) = spec.get("environment") {
+                        server.insert("env".to_string(), env.clone());
+                    }
+                }
+                "remote" => {
+                    server.insert("type".to_string(), serde_json::json!("http"));
+                    if let Some(url) = spec.get("url") {
+                        server.insert("url".to_string(), url.clone());
+                    }
+                    if let Some(headers) = spec.get("headers") {
+                        server.insert("headers".to_string(), headers.clone());
+                    }
+                }
+                other => {
+                    server.insert("type".to_string(), serde_json::json!(other));
+                }
+            }
+
+            ParsedMcpEntry {
+                name: name.clone(),
+                server: serde_json::Value::Object(server),
+            }
+        })
+        .collect()
+}
+
+/// 转换 Codex 格式 (http_headers → headers)
+fn convert_codex_format(
+    servers: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<ParsedMcpEntry> {
+    servers
+        .iter()
+        .map(|(name, spec)| {
+            let mut server = spec.clone();
+            // Codex 使用 http_headers 而非 headers
+            if let Some(obj) = server.as_object_mut() {
+                if let Some(http_headers) = obj.remove("http_headers") {
+                    obj.insert("headers".to_string(), http_headers);
+                }
+                // 确保有 type 字段
+                if !obj.contains_key("type") {
+                    if obj.contains_key("command") {
+                        obj.insert("type".to_string(), serde_json::json!("stdio"));
+                    } else if obj.contains_key("url") {
+                        obj.insert("type".to_string(), serde_json::json!("sse"));
+                    }
+                }
+            }
+            ParsedMcpEntry {
+                name: name.clone(),
+                server,
+            }
+        })
+        .collect()
 }

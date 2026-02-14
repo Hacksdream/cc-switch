@@ -946,6 +946,23 @@
       "preview": "設定プレビュー",
       "apply": "設定を反映"
     },
+    "connectivity": {
+      "test": "接続テスト",
+      "testing": "テスト中...",
+      "success": "接続成功（{{latency}}ms）：{{message}}",
+      "failed": "接続失敗：{{message}}"
+    },
+    "importJson": {
+      "button": "JSON インポート",
+      "title": "MCP サーバーのインポート",
+      "selectAll": "すべて選択",
+      "deselectAll": "選択解除",
+      "selected": "{{count}} 台のサーバーを選択",
+      "import": "選択をインポート",
+      "success": "{{count}} 台の MCP サーバーをインポートしました",
+      "empty": "ファイルに MCP サーバーが見つかりません",
+      "parseError": "JSON ファイルの解析に失敗しました"
+    },
     "id": "識別子（ユニーク）",
     "type": "タイプ",
     "command": "コマンド",

@@ -946,6 +946,23 @@
       "preview": "配置预览",
       "apply": "应用配置"
     },
+    "connectivity": {
+      "test": "测试连通性",
+      "testing": "测试中...",
+      "success": "连接成功（{{latency}}ms）：{{message}}",
+      "failed": "连接失败：{{message}}"
+    },
+    "importJson": {
+      "button": "导入 JSON",
+      "title": "导入 MCP 服务器",
+      "selectAll": "全选",
+      "deselectAll": "取消全选",
+      "selected": "已选择 {{count}} 个服务器",
+      "import": "导入选中",
+      "success": "成功导入 {{count}} 个 MCP 服务器",
+      "empty": "文件中未找到 MCP 服务器配置",
+      "parseError": "JSON 文件解析失败"
+    },
     "id": "标识 (唯一)",
     "type": "类型",
     "command": "命令",

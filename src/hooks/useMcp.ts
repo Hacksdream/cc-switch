@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mcpApi } from "@/lib/api/mcp";
-import type { McpServer } from "@/types";
+import type { McpServer, McpServerSpec } from "@/types";
 import type { AppId } from "@/lib/api/types";
 
 /**
@@ -70,5 +70,14 @@ export function useImportMcpFromApps() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp", "all"] });
     },
+  });
+}
+
+/**
+ * 测试 MCP 服务器连通性
+ */
+export function useTestMcpConnectivity() {
+  return useMutation({
+    mutationFn: (server: McpServerSpec) => mcpApi.testConnectivity(server),
   });
 }
