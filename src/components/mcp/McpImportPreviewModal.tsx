@@ -73,7 +73,13 @@ export function McpImportPreviewModal({
         id: crypto.randomUUID(),
         name: s.name,
         server: s.server,
-        apps: { claude: false, codex: false, gemini: false, opencode: false },
+        apps: {
+          claude: false,
+          codex: false,
+          gemini: false,
+          opencode: false,
+          openclaw: false,
+        },
         tags: [],
       }));
     onImport(selected);
