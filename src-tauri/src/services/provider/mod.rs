@@ -167,8 +167,7 @@ impl ProviderService {
         // Additive mode apps (OpenCode, OpenClaw) - always write to live config
         if app_type.is_additive_mode() {
             // OMO providers use exclusive mode and write to dedicated config file.
-            if matches!(app_type, AppType::OpenCode)
-                && provider.category.as_deref() == Some("omo")
+            if matches!(app_type, AppType::OpenCode) && provider.category.as_deref() == Some("omo")
             {
                 // Do not auto-enable newly added OMO providers.
                 // Users must explicitly switch/apply an OMO provider to activate it.
@@ -207,14 +206,33 @@ impl ProviderService {
 
         // Additive mode apps (OpenCode, OpenClaw) - always update in live config
         if app_type.is_additive_mode() {
-            if matches!(app_type, AppType::OpenCode)
-                && provider.category.as_deref() == Some("omo")
+            if matches!(app_type, AppType::OpenCode) && provider.category.as_deref() == Some("omo")
             {
-                let is_omo_current = state
-                    .db
-                    .is_omo_provider_current(app_type.as_str(), &provider.id)?;
+                let is_omo_current =
+                    state
+                        .db
+                        .is_omo_provider_current(app_type.as_str(), &provider.id, "omo")?;
                 if is_omo_current {
-                    crate::services::OmoService::write_config_to_file(state)?;
+                    crate::services::OmoService::write_config_to_file(
+                        state,
+                        &crate::services::omo::STANDARD,
+                    )?;
+                }
+                return Ok(true);
+            }
+            if matches!(app_type, AppType::OpenCode)
+                && provider.category.as_deref() == Some("omo-slim")
+            {
+                let is_current = state.db.is_omo_provider_current(
+                    app_type.as_str(),
+                    &provider.id,
+                    "omo-slim",
+                )?;
+                if is_current {
+                    crate::services::OmoService::write_config_to_file(
+                        state,
+                        &crate::services::omo::SLIM,
+                    )?;
                 }
                 return Ok(true);
             }
@@ -264,15 +282,16 @@ impl ProviderService {
         // Additive mode apps - no current provider concept
         if app_type.is_additive_mode() {
             if matches!(app_type, AppType::OpenCode) {
-                let is_omo = state
+                let provider_category = state
                     .db
                     .get_provider_by_id(id, app_type.as_str())?
-                    .and_then(|p| p.category)
-                    .as_deref()
-                    == Some("omo");
+                    .and_then(|p| p.category);
 
-                if is_omo {
-                    let was_current = state.db.is_omo_provider_current(app_type.as_str(), id)?;
+                if provider_category.as_deref() == Some("omo") {
+                    let was_current =
+                        state
+                            .db
+                            .is_omo_provider_current(app_type.as_str(), id, "omo")?;
                     let omo_count = state
                         .db
                         .get_all_providers(app_type.as_str())?
@@ -288,7 +307,36 @@ impl ProviderService {
 
                     state.db.delete_provider(app_type.as_str(), id)?;
                     if was_current {
-                        crate::services::OmoService::delete_config_file()?;
+                        crate::services::OmoService::delete_config_file(
+                            &crate::services::omo::STANDARD,
+                        )?;
+                    }
+                    return Ok(());
+                }
+
+                if provider_category.as_deref() == Some("omo-slim") {
+                    let was_current =
+                        state
+                            .db
+                            .is_omo_provider_current(app_type.as_str(), id, "omo-slim")?;
+                    let slim_count = state
+                        .db
+                        .get_all_providers(app_type.as_str())?
+                        .values()
+                        .filter(|p| p.category.as_deref() == Some("omo-slim"))
+                        .count();
+
+                    if slim_count <= 1 && was_current {
+                        return Err(AppError::Message(
+                            "无法删除当前启用的最后一个 OMO Slim 配置，请先停用".to_string(),
+                        ));
+                    }
+
+                    state.db.delete_provider(app_type.as_str(), id)?;
+                    if was_current {
+                        crate::services::OmoService::delete_config_file(
+                            &crate::services::omo::SLIM,
+                        )?;
                     }
                     return Ok(());
                 }
@@ -329,21 +377,46 @@ impl ProviderService {
     ) -> Result<(), AppError> {
         match app_type {
             AppType::OpenCode => {
-                let is_omo = state
+                let provider_category = state
                     .db
                     .get_provider_by_id(id, app_type.as_str())?
-                    .and_then(|p| p.category)
-                    .as_deref()
-                    == Some("omo");
+                    .and_then(|p| p.category);
 
-                if is_omo {
-                    state.db.clear_omo_provider_current(app_type.as_str(), id)?;
-                    let still_has_current =
-                        state.db.get_current_omo_provider("opencode")?.is_some();
+                if provider_category.as_deref() == Some("omo") {
+                    state
+                        .db
+                        .clear_omo_provider_current(app_type.as_str(), id, "omo")?;
+                    let still_has_current = state
+                        .db
+                        .get_current_omo_provider("opencode", "omo")?
+                        .is_some();
                     if still_has_current {
-                        crate::services::OmoService::write_config_to_file(state)?;
+                        crate::services::OmoService::write_config_to_file(
+                            state,
+                            &crate::services::omo::STANDARD,
+                        )?;
                     } else {
-                        crate::services::OmoService::delete_config_file()?;
+                        crate::services::OmoService::delete_config_file(
+                            &crate::services::omo::STANDARD,
+                        )?;
+                    }
+                } else if provider_category.as_deref() == Some("omo-slim") {
+                    state
+                        .db
+                        .clear_omo_provider_current(app_type.as_str(), id, "omo-slim")?;
+                    let still_has_current = state
+                        .db
+                        .get_current_omo_provider("opencode", "omo-slim")?
+                        .is_some();
+                    if still_has_current {
+                        crate::services::OmoService::write_config_to_file(
+                            state,
+                            &crate::services::omo::SLIM,
+                        )?;
+                    } else {
+                        crate::services::OmoService::delete_config_file(
+                            &crate::services::omo::SLIM,
+                        )?;
                     }
                 } else {
                     remove_opencode_provider_from_live(id)?;
@@ -383,6 +456,13 @@ impl ProviderService {
 
         // OMO providers are switched through their own exclusive path.
         if matches!(app_type, AppType::OpenCode) && _provider.category.as_deref() == Some("omo") {
+            return Self::switch_normal(state, app_type, id, &providers);
+        }
+
+        // OMO Slim providers are switched through their own exclusive path.
+        if matches!(app_type, AppType::OpenCode)
+            && _provider.category.as_deref() == Some("omo-slim")
+        {
             return Self::switch_normal(state, app_type, id, &providers);
         }
 
@@ -458,8 +538,22 @@ impl ProviderService {
             .ok_or_else(|| AppError::Message(format!("供应商 {id} 不存在")))?;
 
         if matches!(app_type, AppType::OpenCode) && provider.category.as_deref() == Some("omo") {
-            state.db.set_omo_provider_current(app_type.as_str(), id)?;
-            crate::services::OmoService::write_config_to_file(state)?;
+            state
+                .db
+                .set_omo_provider_current(app_type.as_str(), id, "omo")?;
+            crate::services::OmoService::write_config_to_file(
+                state,
+                &crate::services::omo::STANDARD,
+            )?;
+            return Ok(());
+        }
+
+        if matches!(app_type, AppType::OpenCode) && provider.category.as_deref() == Some("omo-slim")
+        {
+            state
+                .db
+                .set_omo_provider_current(app_type.as_str(), id, "omo-slim")?;
+            crate::services::OmoService::write_config_to_file(state, &crate::services::omo::SLIM)?;
             return Ok(());
         }
 

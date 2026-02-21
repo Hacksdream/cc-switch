@@ -58,7 +58,10 @@
     "extractFromCurrent": "从编辑内容提取",
     "extractNoCommonConfig": "当前编辑内容没有可提取的通用配置",
     "extractFailed": "提取失败: {{error}}",
-    "saveFailed": "保存失败: {{error}}"
+    "saveFailed": "保存失败: {{error}}",
+    "hideAttribution": "隐藏 AI 署名",
+    "alwaysThinking": "扩展思考",
+    "enableTeammates": "Teammates 模式"
   },
   "header": {
     "viewOnGithub": "在 GitHub 上查看",
@@ -74,7 +77,9 @@
     "tabProvider": "供应商",
     "tabUniversal": "统一供应商",
     "noProviders": "还没有添加任何供应商",
-    "noProvidersDescription": "点击右上角的\"添加供应商\"按钮开始配置您的第一个API供应商",
+    "noProvidersDescription": "点击下方的\"导入当前配置\"按钮导入已有配置，或手动添加新的供应商",
+    "importCurrent": "导入当前配置",
+    "importCurrentDescription": "将当前正在使用的配置导入为默认供应商",
     "currentlyUsing": "当前使用",
     "enable": "启用",
     "inUse": "使用中",
@@ -88,8 +93,8 @@
     "addOpenCodeProvider": "添加 OpenCode 供应商",
     "addToConfig": "添加",
     "removeFromConfig": "移除",
-    "setAsDefault": "启用",
-    "isDefault": "默认",
+    "setAsDefault": "设为默认",
+    "isDefault": "当前默认",
     "inConfig": "已添加",
     "addProviderHint": "填写信息后即可在列表中快速切换供应商。",
     "editClaudeProvider": "编辑 Claude Code 供应商",
@@ -189,6 +194,8 @@
       "proxy": {
         "title": "本地代理",
         "description": "控制代理服务开关、查看状态与端口信息",
+        "enableFeature": "在主页面显示本地代理开关",
+        "enableFeatureDescription": "开启后，主页面顶部将显示代理和故障转移开关",
         "running": "运行中",
         "stopped": "已停止"
       },
@@ -283,6 +290,8 @@
       "passwordPlaceholder": "应用密码（坚果云请使用「第三方应用密码」）",
       "remoteRoot": "远程根目录",
       "profile": "同步配置名",
+      "autoSync": "自动同步",
+      "autoSyncHint": "开启后每次数据库变更都会自动上传到 WebDAV。",
       "test": "测试连接",
       "testing": "测试中...",
       "testSuccess": "连接成功",
@@ -294,11 +303,14 @@
       "uploading": "上传中...",
       "uploadSuccess": "已上传到 WebDAV",
       "uploadFailed": "上传失败：{{error}}",
+      "autoSyncFailedToast": "自动同步失败：{{error}}",
       "download": "从云端下载",
       "downloading": "下载中...",
       "downloadSuccess": "已从 WebDAV 下载并恢复",
       "downloadFailed": "下载失败：{{error}}",
       "lastSync": "上次同步：{{time}}",
+      "autoSyncLastErrorTitle": "上次自动同步失败",
+      "autoSyncLastErrorHint": "请检查网络或 WebDAV 配置，系统会在后续变更时继续自动重试。",
       "missingUrl": "请填写 WebDAV 服务器地址",
       "presets": {
         "label": "服务商",
@@ -774,7 +786,8 @@
       "description": "管理 openclaw.json 中的 agents.defaults 配置（默认模型、运行参数等）",
       "modelSection": "模型配置",
       "primaryModel": "主模型",
-      "primaryModelHint": "格式：provider/model-id",
+      "primaryModelHint": "在供应商列表中通过「设为默认模型」按钮设置",
+      "notSet": "未设置",
       "fallbackModels": "回退模型",
       "fallbackModelsHint": "逗号分隔，按优先级排列",
       "runtimeSection": "运行参数",
@@ -1199,7 +1212,21 @@
     "editing": "编辑 {{filename}}",
     "saveSuccess": "保存成功",
     "saveFailed": "保存失败",
-    "loadFailed": "读取失败"
+    "loadFailed": "读取失败",
+    "dailyMemory": {
+      "title": "每日记忆",
+      "sectionTitle": "每日记忆",
+      "cardTitle": "每日记忆文件",
+      "cardDescription": "浏览管理每日记忆",
+      "createToday": "今日笔记",
+      "empty": "暂无每日记忆文件",
+      "loadFailed": "加载每日记忆文件失败",
+      "createFailed": "创建每日记忆文件失败",
+      "deleteSuccess": "每日记忆文件已删除",
+      "deleteFailed": "删除每日记忆文件失败",
+      "confirmDeleteTitle": "删除每日记忆",
+      "confirmDeleteMessage": "确定删除 {{date}} 的每日记忆吗？此操作不可撤销。"
+    }
   },
   "env": {
     "warning": {
@@ -1316,7 +1343,7 @@
       "skillCount": "识别到 {{count}} 个技能"
     },
     "search": "搜索技能",
-    "searchPlaceholder": "搜索技能名称或描述...",
+    "searchPlaceholder": "搜索技能名称或仓库名称...",
     "filter": {
       "placeholder": "状态筛选",
       "all": "全部",
@@ -1844,6 +1871,22 @@
       "unspecifiedLow": "未归类低工作量任务类别，适用于不适合其他类别且工作量较小的任务，默认使用 Claude Sonnet 4.5。",
       "unspecifiedHigh": "未归类高工作量任务类别，适用于不适合其他类别且工作量较大的任务，默认使用 Claude Opus 4.6 的最大变体。",
       "writing": "写作类别，专注于文档、散文和技术写作，默认使用 Gemini 3 Flash 快速生成模型。"
+    },
+    "slimAgentDesc": {
+      "orchestrator": "编排者",
+      "oracle": "神谕者",
+      "librarian": "图书管理员",
+      "explorer": "探索者",
+      "designer": "设计师",
+      "fixer": "修复者"
+    },
+    "slimAgentTooltip": {
+      "orchestrator": "编写执行代码，编排多代理工作流，召唤专家",
+      "oracle": "根本原因分析、架构审查、调试指导（只读）",
+      "librarian": "文档查询、GitHub 代码搜索（只读）",
+      "explorer": "正则搜索、AST 模式匹配、文件发现（只读）",
+      "designer": "现代响应式设计、CSS/Tailwind 精通",
+      "fixer": "代码实现、重构、测试、验证"
     }
   },
   "openclawConfig": {

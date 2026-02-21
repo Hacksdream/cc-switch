@@ -44,7 +44,8 @@ import { AboutSection } from "@/components/settings/AboutSection";
 import { GlobalProxySettings } from "@/components/settings/GlobalProxySettings";
 import { ProxyPanel } from "@/components/proxy";
 import { PricingConfigPanel } from "@/components/usage/PricingConfigPanel";
-import { ModelTestConfigPanel } from "@/components/usage/ModelTestConfigPanel";
+// Hidden: stream check feature disabled
+// import { ModelTestConfigPanel } from "@/components/usage/ModelTestConfigPanel";
 import { AutoFailoverConfigPanel } from "@/components/proxy/AutoFailoverConfigPanel";
 import { FailoverQueueManager } from "@/components/proxy/FailoverQueueManager";
 import { UsageDashboard } from "@/components/usage/UsageDashboard";
@@ -55,6 +56,7 @@ import { useImportExport } from "@/hooks/useImportExport";
 import { useTranslation } from "react-i18next";
 import type { SettingsFormState } from "@/hooks/useSettings";
 import { Switch } from "@/components/ui/switch";
+import { ToggleRow } from "@/components/ui/toggle-row";
 import { Badge } from "@/components/ui/badge";
 import { useProxyStatus } from "@/hooks/useProxyStatus";
 
@@ -360,8 +362,21 @@ export function SettingsPage({
                             />
                           </div>
                         </AccordionPrimitive.Header>
-                        <AccordionContent className="px-6 pb-6 pt-0 border-t border-border/50">
-                          <ProxyPanel />
+                        <AccordionContent className="px-6 pb-6 pt-4 border-t border-border/50">
+                          <ToggleRow
+                            icon={<Zap className="h-4 w-4 text-green-500" />}
+                            title={t("settings.advanced.proxy.enableFeature")}
+                            description={t(
+                              "settings.advanced.proxy.enableFeatureDescription",
+                            )}
+                            checked={settings?.enableLocalProxy ?? false}
+                            onCheckedChange={(checked) =>
+                              handleAutoSave({ enableLocalProxy: checked })
+                            }
+                          />
+                          <div className="mt-4">
+                            <ProxyPanel />
+                          </div>
                         </AccordionContent>
                       </AccordionItem>
 
@@ -505,6 +520,7 @@ export function SettingsPage({
                         </AccordionContent>
                       </AccordionItem>
 
+                      {/* Hidden: stream check feature disabled
                       <AccordionItem
                         value="test"
                         className="rounded-xl glass-card overflow-hidden"
@@ -526,6 +542,7 @@ export function SettingsPage({
                           <ModelTestConfigPanel />
                         </AccordionContent>
                       </AccordionItem>
+                      */}
 
                       <AccordionItem
                         value="pricing"
@@ -601,9 +618,7 @@ export function SettingsPage({
                             onClear={clearSelection}
                           />
                           <div className="pt-6">
-                            <WebdavSyncSection
-                              config={settings?.webdavSync}
-                            />
+                            <WebdavSyncSection config={settings?.webdavSync} />
                           </div>
                         </AccordionContent>
                       </AccordionItem>

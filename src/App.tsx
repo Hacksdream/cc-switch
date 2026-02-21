@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -61,7 +62,10 @@ import { UniversalProviderPanel } from "@/components/universal";
 import { McpIcon } from "@/components/BrandIcons";
 import { Button } from "@/components/ui/button";
 import { SessionManagerPage } from "@/components/sessions/SessionManagerPage";
-import { useDisableCurrentOmo } from "@/lib/query/omo";
+import {
+  useDisableCurrentOmo,
+  useDisableCurrentOmoSlim,
+} from "@/lib/query/omo";
 import WorkspaceFilesPanel from "@/components/workspace/WorkspaceFilesPanel";
 import EnvPanel from "@/components/openclaw/EnvPanel";
 import ToolsPanel from "@/components/openclaw/ToolsPanel";
@@ -81,6 +85,12 @@ type View =
   | "openclawEnv"
   | "openclawTools"
   | "openclawAgents";
+
+interface WebDavSyncStatusUpdatedPayload {
+  source?: string;
+  status?: string;
+  error?: string;
+}
 
 const DRAG_BAR_HEIGHT = isWindows() || isLinux() ? 0 : 28; // px
 const HEADER_HEIGHT = 64; // px
@@ -242,6 +252,23 @@ function App() {
     });
   };
 
+  const disableOmoSlimMutation = useDisableCurrentOmoSlim();
+  const handleDisableOmoSlim = () => {
+    disableOmoSlimMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success(t("omo.disabled", { defaultValue: "OMO 已停用" }));
+      },
+      onError: (error: Error) => {
+        toast.error(
+          t("omo.disableFailed", {
+            defaultValue: "停用 OMO 失败: {{error}}",
+            error: extractErrorMessage(error),
+          }),
+        );
+      },
+    });
+  };
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
@@ -292,6 +319,50 @@ function App() {
       unsubscribe?.();
     };
   }, [queryClient]);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    let active = true;
+
+    const setupListener = async () => {
+      try {
+        const off = await listen(
+          "webdav-sync-status-updated",
+          async (event) => {
+            const payload = (event.payload ??
+              {}) as WebDavSyncStatusUpdatedPayload;
+            await queryClient.invalidateQueries({ queryKey: ["settings"] });
+
+            if (payload.source !== "auto" || payload.status !== "error") {
+              return;
+            }
+
+            toast.error(
+              t("settings.webdavSync.autoSyncFailedToast", {
+                error: payload.error || t("common.unknown"),
+              }),
+            );
+          },
+        );
+        if (!active) {
+          off();
+          return;
+        }
+        unsubscribe = off;
+      } catch (error) {
+        console.error(
+          "[App] Failed to subscribe webdav-sync-status-updated event",
+          error,
+        );
+      }
+    };
+
+    void setupListener();
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [queryClient, t]);
 
   useEffect(() => {
     const checkEnvOnStartup = async () => {
@@ -696,6 +767,11 @@ function App() {
                       onDisableOmo={
                         activeApp === "opencode" ? handleDisableOmo : undefined
                       }
+                      onDisableOmoSlim={
+                        activeApp === "opencode"
+                          ? handleDisableOmoSlim
+                          : undefined
+                      }
                       onDuplicate={handleDuplicateProvider}
                       onConfigureUsage={setUsageProvider}
                       onOpenWebsite={handleOpenWebsite}
@@ -980,21 +1056,23 @@ function App() {
             )}
             {currentView === "providers" && (
               <>
-                {activeApp !== "opencode" && activeApp !== "openclaw" && (
-                  <>
-                    <ProxyToggle activeApp={activeApp} />
-                    <div
-                      className={cn(
-                        "transition-all duration-300 ease-in-out overflow-hidden",
-                        isCurrentAppTakeoverActive
-                          ? "opacity-100 max-w-[100px] scale-100"
-                          : "opacity-0 max-w-0 scale-75 pointer-events-none",
-                      )}
-                    >
-                      <FailoverToggle activeApp={activeApp} />
-                    </div>
-                  </>
-                )}
+                {activeApp !== "opencode" &&
+                  activeApp !== "openclaw" &&
+                  settingsData?.enableLocalProxy && (
+                    <>
+                      <ProxyToggle activeApp={activeApp} />
+                      <div
+                        className={cn(
+                          "transition-all duration-300 ease-in-out overflow-hidden",
+                          isCurrentAppTakeoverActive
+                            ? "opacity-100 max-w-[100px] scale-100"
+                            : "opacity-0 max-w-0 scale-75 pointer-events-none",
+                        )}
+                      >
+                        <FailoverToggle activeApp={activeApp} />
+                      </div>
+                    </>
+                  )}
 
                 <AppSwitcher
                   activeApp={activeApp}

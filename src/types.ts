@@ -4,7 +4,8 @@ export type ProviderCategory =
   | "aggregator" // 聚合网站
   | "third_party" // 第三方供应商
   | "custom" // 自定义
-  | "omo"; // Oh My OpenCode
+  | "omo" // Oh My OpenCode
+  | "omo-slim"; // Oh My OpenCode Slim
 
 export interface Provider {
   id: string;
@@ -167,6 +168,7 @@ export interface VisibleApps {
 export interface WebDavSyncStatus {
   lastSyncAt?: number | null;
   lastError?: string | null;
+  lastErrorSource?: string | null;
   lastRemoteEtag?: string | null;
   lastLocalManifestHash?: string | null;
   lastRemoteManifestHash?: string | null;
@@ -175,6 +177,7 @@ export interface WebDavSyncStatus {
 // WebDAV v2 同步配置
 export interface WebDavSyncSettings {
   enabled?: boolean;
+  autoSync?: boolean;
   baseUrl?: string;
   username?: string;
   password?: string;
@@ -209,6 +212,8 @@ export interface Settings {
   launchOnStartup?: boolean;
   // 静默启动（程序启动时不显示主窗口）
   silentStartup?: boolean;
+  // 是否启用主页面本地代理功能（默认关闭）
+  enableLocalProxy?: boolean;
   // 首选语言（可选，默认中文）
   language?: "en" | "zh" | "ja";
 

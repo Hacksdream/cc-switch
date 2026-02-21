@@ -14,6 +14,7 @@ export const settingsSchema = z.object({
   enableClaudePluginIntegration: z.boolean().optional(),
   skipClaudeOnboarding: z.boolean().optional(),
   launchOnStartup: z.boolean().optional(),
+  enableLocalProxy: z.boolean().optional(),
   language: z.enum(["en", "zh", "ja"]).optional(),
 
   // 设备级目录覆盖
@@ -33,6 +34,7 @@ export const settingsSchema = z.object({
   webdavSync: z
     .object({
       enabled: z.boolean().optional(),
+      autoSync: z.boolean().optional(),
       baseUrl: z.string().trim().optional().or(z.literal("")),
       username: z.string().trim().optional().or(z.literal("")),
       password: z.string().optional(),
@@ -42,6 +44,7 @@ export const settingsSchema = z.object({
         .object({
           lastSyncAt: z.number().nullable().optional(),
           lastError: z.string().nullable().optional(),
+          lastErrorSource: z.string().nullable().optional(),
           lastRemoteEtag: z.string().nullable().optional(),
           lastLocalManifestHash: z.string().nullable().optional(),
           lastRemoteManifestHash: z.string().nullable().optional(),

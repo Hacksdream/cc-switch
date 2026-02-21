@@ -307,9 +307,10 @@ pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
 
     let plugins = root_obj.array_value_or_set("plugin");
 
-    // If adding oh-my-opencode (non-slim), remove any slim variant first
+    // Mutual exclusion: standard OMO and OMO Slim cannot coexist as plugins
     if plugin_name.starts_with("oh-my-opencode") && !plugin_name.starts_with("oh-my-opencode-slim")
     {
+        // Adding standard OMO -> remove all Slim variants
         let to_remove: Vec<_> = plugins
             .elements()
             .into_iter()
@@ -317,6 +318,23 @@ pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
                 el.as_string_lit()
                     .and_then(|s| s.decoded_value().ok())
                     .map(|s| s.starts_with("oh-my-opencode-slim"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        for node in to_remove {
+            node.remove();
+        }
+    } else if plugin_name.starts_with("oh-my-opencode-slim") {
+        // Adding Slim -> remove all standard OMO variants (but keep slim)
+        let to_remove: Vec<_> = plugins
+            .elements()
+            .into_iter()
+            .filter(|el| {
+                el.as_string_lit()
+                    .and_then(|s| s.decoded_value().ok())
+                    .map(|s| {
+                        s.starts_with("oh-my-opencode") && !s.starts_with("oh-my-opencode-slim")
+                    })
                     .unwrap_or(false)
             })
             .collect();

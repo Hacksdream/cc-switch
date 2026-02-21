@@ -58,7 +58,10 @@
     "extractFromCurrent": "Extract from Editor",
     "extractNoCommonConfig": "No common config available to extract from editor",
     "extractFailed": "Extract failed: {{error}}",
-    "saveFailed": "Save failed: {{error}}"
+    "saveFailed": "Save failed: {{error}}",
+    "hideAttribution": "Hide AI Attribution",
+    "alwaysThinking": "Extended Thinking",
+    "enableTeammates": "Teammates Mode"
   },
   "header": {
     "viewOnGithub": "View on GitHub",
@@ -74,7 +77,9 @@
     "tabProvider": "Provider",
     "tabUniversal": "Universal",
     "noProviders": "No providers added yet",
-    "noProvidersDescription": "Click the \"Add Provider\" button in the top right to configure your first API provider",
+    "noProvidersDescription": "Import your current live config below, or manually add a new provider",
+    "importCurrent": "Import Current Config",
+    "importCurrentDescription": "Import current live config as default provider",
     "currentlyUsing": "Currently Using",
     "enable": "Enable",
     "inUse": "In Use",
@@ -88,8 +93,8 @@
     "addOpenCodeProvider": "Add OpenCode Provider",
     "addToConfig": "Add",
     "removeFromConfig": "Remove",
-    "setAsDefault": "Enable",
-    "isDefault": "Default",
+    "setAsDefault": "Set Default",
+    "isDefault": "Current Default",
     "inConfig": "Added",
     "addProviderHint": "Fill in the information to quickly switch providers in the list.",
     "editClaudeProvider": "Edit Claude Code Provider",
@@ -189,6 +194,8 @@
       "proxy": {
         "title": "Local Proxy",
         "description": "Control proxy service toggle, view status and port info",
+        "enableFeature": "Show Proxy Toggle on Main Page",
+        "enableFeatureDescription": "When enabled, the proxy and failover toggles will appear at the top of the main page",
         "running": "Running",
         "stopped": "Stopped"
       },
@@ -283,6 +290,8 @@
       "passwordPlaceholder": "App password",
       "remoteRoot": "Remote Root Directory",
       "profile": "Sync Profile Name",
+      "autoSync": "Auto Sync",
+      "autoSyncHint": "When enabled, each database change triggers an automatic WebDAV upload.",
       "test": "Test Connection",
       "testing": "Testing...",
       "testSuccess": "Connection successful",
@@ -294,11 +303,14 @@
       "uploading": "Uploading...",
       "uploadSuccess": "Uploaded to WebDAV",
       "uploadFailed": "Upload failed: {{error}}",
+      "autoSyncFailedToast": "Auto sync failed: {{error}}",
       "download": "Download from Cloud",
       "downloading": "Downloading...",
       "downloadSuccess": "Downloaded and restored from WebDAV",
       "downloadFailed": "Download failed: {{error}}",
       "lastSync": "Last sync: {{time}}",
+      "autoSyncLastErrorTitle": "Last auto sync failed",
+      "autoSyncLastErrorHint": "Please check network or WebDAV settings. Auto sync will retry on future changes.",
       "missingUrl": "Please enter the WebDAV server URL",
       "presets": {
         "label": "Provider",
@@ -774,7 +786,8 @@
       "description": "Manage agents.defaults in openclaw.json (default model, runtime parameters, etc.)",
       "modelSection": "Model Configuration",
       "primaryModel": "Primary Model",
-      "primaryModelHint": "Format: provider/model-id",
+      "primaryModelHint": "Set via the \"Set as Default Model\" button in the provider list",
+      "notSet": "Not set",
       "fallbackModels": "Fallback Models",
       "fallbackModelsHint": "Comma-separated, ordered by priority",
       "runtimeSection": "Runtime Parameters",
@@ -1199,7 +1212,21 @@
     "editing": "Edit {{filename}}",
     "saveSuccess": "Saved successfully",
     "saveFailed": "Failed to save",
-    "loadFailed": "Failed to load"
+    "loadFailed": "Failed to load",
+    "dailyMemory": {
+      "title": "Daily Memory",
+      "sectionTitle": "Daily Memory",
+      "cardTitle": "Daily Memory Files",
+      "cardDescription": "Browse & manage daily memories",
+      "createToday": "Today's Note",
+      "empty": "No daily memory files yet",
+      "loadFailed": "Failed to load daily memory files",
+      "createFailed": "Failed to create daily memory file",
+      "deleteSuccess": "Daily memory file deleted",
+      "deleteFailed": "Failed to delete daily memory file",
+      "confirmDeleteTitle": "Delete Daily Memory",
+      "confirmDeleteMessage": "Delete the daily memory for {{date}}? This cannot be undone."
+    }
   },
   "env": {
     "warning": {
@@ -1316,7 +1343,7 @@
       "skillCount": "{{count}} skills detected"
     },
     "search": "Search Skills",
-    "searchPlaceholder": "Search skill name or description...",
+    "searchPlaceholder": "Search skill name or repo...",
     "filter": {
       "placeholder": "Filter by status",
       "all": "All",
@@ -1844,6 +1871,22 @@
       "unspecifiedLow": "Uncategorized low-effort task category for tasks that don't fit other categories with small workload. Defaults to Claude Sonnet 4.5.",
       "unspecifiedHigh": "Uncategorized high-effort task category for tasks that don't fit other categories with large workload. Defaults to Claude Opus 4.6 max variant.",
       "writing": "Writing category for documentation, prose and technical writing. Defaults to Gemini 3 Flash fast generation model."
+    },
+    "slimAgentDesc": {
+      "orchestrator": "Orchestrator",
+      "oracle": "Oracle",
+      "librarian": "Librarian",
+      "explorer": "Explorer",
+      "designer": "Designer",
+      "fixer": "Fixer"
+    },
+    "slimAgentTooltip": {
+      "orchestrator": "Writes executable code, orchestrates multi-agent workflow, summons experts",
+      "oracle": "Root cause analysis, architecture review, debugging guidance (read-only)",
+      "librarian": "Documentation lookup, GitHub code search (read-only)",
+      "explorer": "Regex search, AST pattern matching, file discovery (read-only)",
+      "designer": "Modern responsive design, CSS/Tailwind expertise",
+      "fixer": "Code implementation, refactoring, testing, verification"
     }
   },
   "openclawConfig": {

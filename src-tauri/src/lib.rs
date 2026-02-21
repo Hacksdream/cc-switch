@@ -448,52 +448,7 @@ pub fn run() {
                 Err(e) => log::warn!("✗ Failed to read skills migration flag: {e}"),
             }
 
-            // 2. 导入供应商配置（已有内置检查：该应用已有供应商则跳过）
-            for app in [
-                crate::app_config::AppType::Claude,
-                crate::app_config::AppType::Codex,
-                crate::app_config::AppType::Gemini,
-            ] {
-                match crate::services::provider::ProviderService::import_default_config(
-                    &app_state,
-                    app.clone(),
-                ) {
-                    Ok(true) => {
-                        log::info!("✓ Imported default provider for {}", app.as_str());
-
-                        // 首次运行：自动提取通用配置片段（仅当通用配置为空时）
-                        if app_state
-                            .db
-                            .get_config_snippet(app.as_str())
-                            .ok()
-                            .flatten()
-                            .is_none()
-                        {
-                            match crate::services::provider::ProviderService::extract_common_config_snippet(&app_state, app.clone()) {
-                                Ok(snippet) if !snippet.is_empty() && snippet != "{}" => {
-                                    if let Err(e) = app_state.db.set_config_snippet(app.as_str(), Some(snippet)) {
-                                        log::warn!("✗ Failed to save common config snippet for {}: {e}", app.as_str());
-                                    } else {
-                                        log::info!("✓ Extracted common config snippet for {}", app.as_str());
-                                    }
-                                }
-                                Ok(_) => log::debug!("○ No common config to extract for {}", app.as_str()),
-                                Err(e) => log::debug!("○ Failed to extract common config for {}: {e}", app.as_str()),
-                            }
-                        }
-                    }
-                    Ok(false) => {} // 已有供应商，静默跳过
-                    Err(e) => {
-                        log::debug!(
-                            "○ No default provider to import for {}: {}",
-                            app.as_str(),
-                            e
-                        );
-                    }
-                }
-            }
-
-            // 2.1 OpenCode 供应商导入（累加式模式，需特殊处理）
+            // 2. OpenCode 供应商导入（累加式模式，需特殊处理）
             // OpenCode 与其他应用不同：配置文件中可同时存在多个供应商
             // 需要遍历 provider 字段下的每个供应商并导入
             match crate::services::provider::import_opencode_providers_from_live(&app_state) {
@@ -512,7 +467,7 @@ pub fn run() {
                     .map(|providers| providers.values().any(|p| p.category.as_deref() == Some("omo")))
                     .unwrap_or(false);
                 if !has_omo {
-                    match crate::services::OmoService::import_from_local(&app_state) {
+                    match crate::services::OmoService::import_from_local(&app_state, &crate::services::omo::STANDARD) {
                         Ok(provider) => {
                             log::info!("✓ Imported OMO config from local as provider '{}'", provider.name);
                         }
@@ -526,7 +481,36 @@ pub fn run() {
                 }
             }
 
-            // 2.3 OpenClaw 供应商导入（累加式模式，需特殊处理）
+            // 2.3 OMO Slim config import (when no omo-slim provider in DB, import from local)
+            {
+                let has_omo_slim = app_state
+                    .db
+                    .get_all_providers("opencode")
+                    .map(|providers| {
+                        providers
+                            .values()
+                            .any(|p| p.category.as_deref() == Some("omo-slim"))
+                    })
+                    .unwrap_or(false);
+                if !has_omo_slim {
+                    match crate::services::OmoService::import_from_local(&app_state, &crate::services::omo::SLIM) {
+                        Ok(provider) => {
+                            log::info!(
+                                "✓ Imported OMO Slim config from local as provider '{}'",
+                                provider.name
+                            );
+                        }
+                        Err(AppError::OmoConfigNotFound) => {
+                            log::debug!("○ No OMO Slim config to import");
+                        }
+                        Err(e) => {
+                            log::warn!("✗ Failed to import OMO Slim config from local: {e}");
+                        }
+                    }
+                }
+            }
+
+            // 2.4 OpenClaw 供应商导入（累加式模式，需特殊处理）
             // OpenClaw 与 OpenCode 类似：配置文件中可同时存在多个供应商
             // 需要遍历 models.providers 字段下的每个供应商并导入
             match crate::services::provider::import_openclaw_providers_from_live(&app_state) {
@@ -702,6 +686,10 @@ pub fn run() {
             }
 
             let _tray = tray_builder.build(app)?;
+            crate::services::webdav_auto_sync::start_worker(
+                app_state.db.clone(),
+                app.handle().clone(),
+            );
             // 将同一个实例注入到全局状态，避免重复创建导致的不一致
             app.manage(app_state);
 
@@ -1033,9 +1021,18 @@ pub fn run() {
             commands::get_current_omo_provider_id,
             commands::get_omo_provider_count,
             commands::disable_current_omo,
+            commands::read_omo_slim_local_file,
+            commands::get_current_omo_slim_provider_id,
+            commands::get_omo_slim_provider_count,
+            commands::disable_current_omo_slim,
             // Workspace files (OpenClaw)
             commands::read_workspace_file,
             commands::write_workspace_file,
+            // Daily memory files (OpenClaw workspace)
+            commands::list_daily_memory_files,
+            commands::read_daily_memory_file,
+            commands::write_daily_memory_file,
+            commands::delete_daily_memory_file,
         ]);
 
     let app = builder

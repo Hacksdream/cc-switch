@@ -58,7 +58,10 @@
     "extractFromCurrent": "編集内容から抽出",
     "extractNoCommonConfig": "編集内容から抽出できる共通設定がありません",
     "extractFailed": "抽出に失敗しました: {{error}}",
-    "saveFailed": "保存に失敗しました: {{error}}"
+    "saveFailed": "保存に失敗しました: {{error}}",
+    "hideAttribution": "AI署名を非表示",
+    "alwaysThinking": "拡張思考",
+    "enableTeammates": "Teammates モード"
   },
   "header": {
     "viewOnGithub": "GitHub で見る",
@@ -74,7 +77,9 @@
     "tabProvider": "プロバイダー",
     "tabUniversal": "統一プロバイダー",
     "noProviders": "まだプロバイダーがありません",
-    "noProvidersDescription": "右上の「プロバイダーを追加」を押して最初の API プロバイダーを登録してください",
+    "noProvidersDescription": "下の「現在の設定をインポート」ボタンで既存の設定を取り込むか、新しいプロバイダーを手動で追加してください",
+    "importCurrent": "現在の設定をインポート",
+    "importCurrentDescription": "現在使用中の設定をデフォルトプロバイダーとしてインポート",
     "currentlyUsing": "現在使用中",
     "enable": "有効化",
     "inUse": "使用中",
@@ -88,8 +93,8 @@
     "addOpenCodeProvider": "OpenCode プロバイダーを追加",
     "addToConfig": "追加",
     "removeFromConfig": "削除",
-    "setAsDefault": "有効化",
-    "isDefault": "デフォルト",
+    "setAsDefault": "デフォルトに設定",
+    "isDefault": "現在のデフォルト",
     "inConfig": "追加済み",
     "addProviderHint": "一覧にすばやく切り替えられるよう、ここに情報を入力してください。",
     "editClaudeProvider": "Claude Code プロバイダーを編集",
@@ -189,6 +194,8 @@
       "proxy": {
         "title": "ローカルプロキシ",
         "description": "プロキシサービスの切り替え、ステータスとポート情報を表示",
+        "enableFeature": "メインページにプロキシ切り替えを表示",
+        "enableFeatureDescription": "有効にすると、メインページ上部にプロキシとフェイルオーバーの切り替えが表示されます",
         "running": "実行中",
         "stopped": "停止中"
       },
@@ -283,6 +290,8 @@
       "passwordPlaceholder": "アプリパスワード",
       "remoteRoot": "リモートルートディレクトリ",
       "profile": "同期プロファイル名",
+      "autoSync": "自動同期",
+      "autoSyncHint": "有効にすると、データベース変更のたびに WebDAV へ自動アップロードします。",
       "test": "接続テスト",
       "testing": "テスト中...",
       "testSuccess": "接続成功",
@@ -294,11 +303,14 @@
       "uploading": "アップロード中...",
       "uploadSuccess": "WebDAV にアップロードしました",
       "uploadFailed": "アップロードに失敗しました：{{error}}",
+      "autoSyncFailedToast": "自動同期に失敗しました：{{error}}",
       "download": "クラウドからダウンロード",
       "downloading": "ダウンロード中...",
       "downloadSuccess": "WebDAV からダウンロード・復元しました",
       "downloadFailed": "ダウンロードに失敗しました：{{error}}",
       "lastSync": "前回の同期：{{time}}",
+      "autoSyncLastErrorTitle": "前回の自動同期に失敗しました",
+      "autoSyncLastErrorHint": "ネットワークまたは WebDAV 設定を確認してください。次回の変更時に自動再試行されます。",
       "missingUrl": "WebDAV サーバー URL を入力してください",
       "presets": {
         "label": "サービス",
@@ -774,7 +786,8 @@
       "description": "openclaw.json の agents.defaults 設定を管理（デフォルトモデル、ランタイムパラメータなど）",
       "modelSection": "モデル設定",
       "primaryModel": "プライマリモデル",
-      "primaryModelHint": "形式: provider/model-id",
+      "primaryModelHint": "プロバイダ一覧の「デフォルトモデルに設定」ボタンで設定します",
+      "notSet": "未設定",
       "fallbackModels": "フォールバックモデル",
       "fallbackModelsHint": "カンマ区切り、優先度順",
       "runtimeSection": "ランタイムパラメータ",
@@ -1199,7 +1212,21 @@
     "editing": "{{filename}} を編集",
     "saveSuccess": "保存しました",
     "saveFailed": "保存に失敗しました",
-    "loadFailed": "読み込みに失敗しました"
+    "loadFailed": "読み込みに失敗しました",
+    "dailyMemory": {
+      "title": "デイリーメモリー",
+      "sectionTitle": "デイリーメモリー",
+      "cardTitle": "デイリーメモリーファイル",
+      "cardDescription": "デイリーメモリーの閲覧・管理",
+      "createToday": "今日のノート",
+      "empty": "デイリーメモリーファイルはまだありません",
+      "loadFailed": "デイリーメモリーファイルの読み込みに失敗しました",
+      "createFailed": "デイリーメモリーファイルの作成に失敗しました",
+      "deleteSuccess": "デイリーメモリーファイルを削除しました",
+      "deleteFailed": "デイリーメモリーファイルの削除に失敗しました",
+      "confirmDeleteTitle": "デイリーメモリーを削除",
+      "confirmDeleteMessage": "{{date}} のデイリーメモリーを削除しますか？この操作は取り消せません。"
+    }
   },
   "env": {
     "warning": {
@@ -1314,7 +1341,7 @@
       "skillCount": "{{count}} 件のスキルを検出"
     },
     "search": "スキルを検索",
-    "searchPlaceholder": "スキル名または説明で検索...",
+    "searchPlaceholder": "スキル名またはリポジトリで検索...",
     "filter": {
       "placeholder": "状態で絞り込み",
       "all": "すべて",
@@ -1825,6 +1852,22 @@
       "unspecifiedLow": "未分類の低作業量タスクカテゴリ。他のカテゴリに該当せず作業量が小さいタスクに適用。デフォルトで Claude Sonnet 4.5 を使用。",
       "unspecifiedHigh": "未分類の高作業量タスクカテゴリ。他のカテゴリに該当せず作業量が大きいタスクに適用。デフォルトで Claude Opus 4.6 の max バリアントを使用。",
       "writing": "ライティングカテゴリ。ドキュメント、散文、技術文書に特化。デフォルトで Gemini 3 Flash 高速生成モデルを使用。"
+    },
+    "slimAgentDesc": {
+      "orchestrator": "オーケストレーター",
+      "oracle": "オラクル",
+      "librarian": "ライブラリアン",
+      "explorer": "エクスプローラー",
+      "designer": "デザイナー",
+      "fixer": "フィクサー"
+    },
+    "slimAgentTooltip": {
+      "orchestrator": "実行コードの作成、マルチエージェントワークフローの調整、エキスパートの召喚",
+      "oracle": "根本原因分析、アーキテクチャレビュー、デバッグガイダンス（読み取り専用）",
+      "librarian": "ドキュメント検索、GitHubコード検索（読み取り専用）",
+      "explorer": "正規表現検索、ASTパターンマッチング、ファイル検出（読み取り専用）",
+      "designer": "モダンなレスポンシブデザイン、CSS/Tailwindの専門知識",
+      "fixer": "コード実装、リファクタリング、テスト、検証"
     }
   },
   "openclawConfig": {

@@ -72,6 +72,8 @@ pub struct WebDavSyncStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_remote_etag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_local_manifest_hash: Option<String>,
@@ -93,6 +95,8 @@ pub struct WebDavSyncSettings {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
+    pub auto_sync: bool,
+    #[serde(default)]
     pub base_url: String,
     #[serde(default)]
     pub username: String,
@@ -110,6 +114,7 @@ impl Default for WebDavSyncSettings {
     fn default() -> Self {
         Self {
             enabled: false,
+            auto_sync: false,
             base_url: String::new(),
             username: String::new(),
             password: String::new(),
@@ -182,6 +187,9 @@ pub struct AppSettings {
     /// 静默启动（程序启动时不显示主窗口，仅托盘运行）
     #[serde(default)]
     pub silent_startup: bool,
+    /// 是否在主页面启用本地代理功能（默认关闭）
+    #[serde(default)]
+    pub enable_local_proxy: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
 
@@ -269,6 +277,7 @@ impl Default for AppSettings {
             skip_claude_onboarding: false,
             launch_on_startup: false,
             silent_startup: false,
+            enable_local_proxy: false,
             language: None,
             visible_apps: None,
             claude_config_dir: None,
