@@ -448,18 +448,7 @@ pub fn run() {
                 Err(e) => log::warn!("✗ Failed to read skills migration flag: {e}"),
             }
 
-            // 2. OpenCode 供应商导入（累加式模式，需特殊处理）
-            // OpenCode 与其他应用不同：配置文件中可同时存在多个供应商
-            // 需要遍历 provider 字段下的每个供应商并导入
-            match crate::services::provider::import_opencode_providers_from_live(&app_state) {
-                Ok(count) if count > 0 => {
-                    log::info!("✓ Imported {count} OpenCode provider(s) from live config");
-                }
-                Ok(_) => log::debug!("○ No OpenCode providers found to import"),
-                Err(e) => log::warn!("○ Failed to import OpenCode providers: {e}"),
-            }
-
-            // 2.2 OMO 配置导入（当数据库中无 OMO provider 时，从本地文件导入）
+            // 2. OMO 配置导入（当数据库中无 OMO provider 时，从本地文件导入）
             {
                 let has_omo = app_state
                     .db
@@ -508,17 +497,6 @@ pub fn run() {
                         }
                     }
                 }
-            }
-
-            // 2.4 OpenClaw 供应商导入（累加式模式，需特殊处理）
-            // OpenClaw 与 OpenCode 类似：配置文件中可同时存在多个供应商
-            // 需要遍历 models.providers 字段下的每个供应商并导入
-            match crate::services::provider::import_openclaw_providers_from_live(&app_state) {
-                Ok(count) if count > 0 => {
-                    log::info!("✓ Imported {count} OpenClaw provider(s) from live config");
-                }
-                Ok(_) => log::debug!("○ No OpenClaw providers found to import"),
-                Err(e) => log::warn!("○ Failed to import OpenClaw providers: {e}"),
             }
 
             // 3. 导入 MCP 服务器配置（表空时触发）
@@ -768,6 +746,25 @@ pub fn run() {
 
                 // 检查 settings 表中的代理状态，自动恢复代理服务
                 restore_proxy_state_on_startup(&state).await;
+
+                // Periodic backup check (on startup)
+                if let Err(e) = state.db.periodic_backup_if_needed() {
+                    log::warn!("Periodic backup failed on startup: {e}");
+                }
+
+                // Periodic backup timer: check every hour while the app is running
+                let db_for_timer = state.db.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut interval =
+                        tokio::time::interval(std::time::Duration::from_secs(3600));
+                    interval.tick().await; // skip immediate first tick (already checked above)
+                    loop {
+                        interval.tick().await;
+                        if let Err(e) = db_for_timer.periodic_backup_if_needed() {
+                            log::warn!("Periodic backup timer failed: {e}");
+                        }
+                    }
+                });
             });
 
             // Linux: 禁用 WebKitGTK 硬件加速，防止 EGL 初始化失败导致白屏
@@ -826,12 +823,8 @@ pub fn run() {
             commands::get_skills_migration_result,
             commands::get_app_config_path,
             commands::open_app_config_folder,
-            commands::get_claude_common_config_snippet,
-            commands::set_claude_common_config_snippet,
-            commands::get_common_config_snippet,
-            commands::set_common_config_snippet,
-            commands::extract_common_config_snippet,
             commands::read_live_provider_settings,
+            commands::patch_claude_live_settings,
             commands::get_settings,
             commands::save_settings,
             commands::get_rectifier_config,
@@ -898,6 +891,11 @@ pub fn run() {
             commands::save_file_dialog,
             commands::open_file_dialog,
             commands::open_zip_file_dialog,
+            commands::create_db_backup,
+            commands::list_db_backups,
+            commands::restore_db_backup,
+            commands::rename_db_backup,
+            commands::delete_db_backup,
             commands::sync_current_providers_live,
             // Deep link import
             commands::parse_deeplink,
@@ -1019,11 +1017,9 @@ pub fn run() {
             commands::set_window_theme,
             commands::read_omo_local_file,
             commands::get_current_omo_provider_id,
-            commands::get_omo_provider_count,
             commands::disable_current_omo,
             commands::read_omo_slim_local_file,
             commands::get_current_omo_slim_provider_id,
-            commands::get_omo_slim_provider_count,
             commands::disable_current_omo_slim,
             // Workspace files (OpenClaw)
             commands::read_workspace_file,
@@ -1033,6 +1029,8 @@ pub fn run() {
             commands::read_daily_memory_file,
             commands::write_daily_memory_file,
             commands::delete_daily_memory_file,
+            commands::search_daily_memory_files,
+            commands::open_workspace_directory,
         ]);
 
     let app = builder
