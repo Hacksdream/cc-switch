@@ -985,6 +985,15 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
+      },
+      "filter": {
+        "searchPlaceholder": "搜索 MCP 服务器...",
+        "allApps": "所有应用",
+        "allStatus": "所有状态",
+        "enabled": "已启用",
+        "disabled": "已禁用",
+        "noResults": "没有匹配的 MCP 服务器",
+        "noResultsHint": "请尝试调整搜索或筛选条件"
       }
     },
     "userLevelPath": "用户级 MCP 配置路径",
@@ -1426,7 +1435,12 @@
       "installed": "已安装",
       "uninstalled": "未安装",
       "repo": "仓库筛选",
-      "allRepos": "全部仓库"
+      "allRepos": "全部仓库",
+      "search": "搜索技能...",
+      "allApps": "所有应用",
+      "allStatus": "所有状态",
+      "enabled": "已启用",
+      "disabled": "已禁用"
     },
     "noResults": "未找到匹配的技能",
     "noInstalled": "暂无已安装的技能",

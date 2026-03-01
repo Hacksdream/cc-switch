@@ -985,6 +985,15 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
+      },
+      "filter": {
+        "searchPlaceholder": "MCPサーバーを検索...",
+        "allApps": "すべてのアプリ",
+        "allStatus": "すべてのステータス",
+        "enabled": "有効",
+        "disabled": "無効",
+        "noResults": "一致するMCPサーバーがありません",
+        "noResultsHint": "検索条件やフィルターを調整してみてください"
       }
     },
     "userLevelPath": "ユーザーレベルの MCP パス",
@@ -1426,7 +1435,12 @@
       "installed": "インストール済み",
       "uninstalled": "未インストール",
       "repo": "リポジトリで絞り込み",
-      "allRepos": "すべてのリポジトリ"
+      "allRepos": "すべてのリポジトリ",
+      "search": "スキルを検索...",
+      "allApps": "すべてのアプリ",
+      "allStatus": "すべてのステータス",
+      "enabled": "有効",
+      "disabled": "無効"
     },
     "noResults": "一致するスキルが見つかりませんでした",
     "noInstalled": "インストールされたスキルがありません",

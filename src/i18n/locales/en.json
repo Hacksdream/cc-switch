@@ -985,6 +985,15 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
+      },
+      "filter": {
+        "searchPlaceholder": "Search MCP servers...",
+        "allApps": "All Apps",
+        "allStatus": "All Status",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "noResults": "No matching MCP servers",
+        "noResultsHint": "Try adjusting your search or filter criteria"
       }
     },
     "userLevelPath": "User-level MCP path",
@@ -1426,7 +1435,12 @@
       "installed": "Installed",
       "uninstalled": "Not installed",
       "repo": "Filter by repo",
-      "allRepos": "All repos"
+      "allRepos": "All repos",
+      "search": "Search skills...",
+      "allApps": "All Apps",
+      "allStatus": "All Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
     },
     "noResults": "No matching skills found",
     "noInstalled": "No skills installed",
