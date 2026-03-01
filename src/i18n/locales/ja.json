@@ -434,6 +434,8 @@
       "title": "優先ターミナル",
       "description": "ターミナルボタンをクリックした時に使用するターミナルアプリを選択",
       "fallbackHint": "選択したターミナルが利用できない場合、システムのデフォルトが使用されます",
+      "customTerminals": "カスタムターミナル",
+      "browseTerminal": "ターミナルを参照",
       "options": {
         "macos": {
           "terminal": "Terminal.app",

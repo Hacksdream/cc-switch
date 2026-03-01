@@ -434,6 +434,8 @@
       "title": "Preferred Terminal",
       "description": "Choose which terminal app to use when clicking the terminal button",
       "fallbackHint": "If the selected terminal is unavailable, the system default will be used",
+      "customTerminals": "Custom Terminals",
+      "browseTerminal": "Browse Terminal",
       "options": {
         "macos": {
           "terminal": "Terminal.app",
