@@ -38,7 +38,9 @@
     "reset": "Reset",
     "actions": "Actions",
     "deleting": "Deleting...",
-    "auto": "Auto"
+    "auto": "Auto",
+    "enabled": "Enabled",
+    "notSet": "Not Set"
   },
   "apiKeyInput": {
     "placeholder": "Enter API Key",
@@ -458,7 +460,9 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "browseTitle": "Select Terminal Application",
+      "noCustomTerminals": "No custom terminals added"
     },
     "configDirectoryOverride": "Configuration Directory Override (Advanced)",
     "configDirectoryDescription": "When using Claude Code or Codex in environments like WSL, you can manually specify the configuration directory to the one in WSL to keep provider data consistent with the main environment.",
@@ -543,7 +547,8 @@
       "pricingLoadFailed": "Failed to load pricing defaults: {{error}}",
       "defaultCostMultiplierRequired": "Default multiplier is required",
       "defaultCostMultiplierInvalid": "Invalid multiplier format"
-    }
+    },
+    "saveFailedGeneric": "Failed to save settings"
   },
   "apps": {
     "claude": "Claude",
@@ -589,7 +594,14 @@
     "daysAgo": "{{count}} days ago",
     "roleUser": "User",
     "roleSystem": "System",
-    "roleTool": "Tool"
+    "roleTool": "Tool",
+    "conversationHistory": "Conversation History",
+    "copyCommand": "Copy Command",
+    "copyMessage": "Copy Message",
+    "messageCopied": "Message copied",
+    "noResumeCommand": "No resume command available",
+    "resume": "Resume",
+    "resumeTooltip": "Resume this session"
   },
   "console": {
     "providerSwitchReceived": "Received provider switch event:",
@@ -713,7 +725,9 @@
     "testUnavailable": "Speed test unavailable",
     "noResult": "No result returned",
     "testFailed": "Speed test failed: {{error}}",
-    "status": "Status: {{code}}"
+    "status": "Status: {{code}}",
+    "empty": "No endpoints to test",
+    "notTested": "Not tested"
   },
   "providerAdvanced": {
     "testConfig": "Model Test Config",
@@ -748,7 +762,10 @@
     "authJsonHint": "Codex auth.json configuration content",
     "configToml": "config.toml (TOML)",
     "configTomlHint": "Codex config.toml configuration content",
-    "apiUrlLabel": "API Request URL"
+    "apiUrlLabel": "API Request URL",
+    "modelName": "Model Name",
+    "modelNameHint": "The model identifier to use with this provider",
+    "modelNamePlaceholder": "e.g. gpt-4o"
   },
   "geminiConfig": {
     "envFile": "Environment Variables (.env)",
@@ -883,7 +900,26 @@
     "costBreakdown": "Cost Breakdown",
     "performance": "Performance",
     "latency": "Latency",
-    "errorMessage": "Error Message"
+    "errorMessage": "Error Message",
+    "addPricing": "Add Pricing",
+    "avgCost": "Avg Cost",
+    "avgLatency": "Avg Latency",
+    "editPricing": "Edit Pricing",
+    "inputCostPerMillion": "Input Cost per Million Tokens",
+    "invalidPrice": "Invalid price",
+    "invalidTimeRange": "Invalid time range",
+    "invalidTimeRangeOrder": "Start time must be before end time",
+    "modelId": "Model ID",
+    "modelIdRequired": "Model ID is required",
+    "never": "Never",
+    "outputCostPerMillion": "Output Cost per Million Tokens",
+    "pricingAdded": "Pricing added",
+    "pricingUpdated": "Pricing updated",
+    "requestId": "Request ID",
+    "requests": "Requests",
+    "successRate": "Success Rate",
+    "timeRangeTooLarge": "Time range is too large",
+    "tokens": "Tokens"
   },
   "usageScript": {
     "title": "Configure Usage Query",
@@ -1064,7 +1100,10 @@
       "headers": "Headers (optional)",
       "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
       "preview": "Configuration Preview",
-      "apply": "Apply Configuration"
+      "apply": "Apply Configuration",
+      "token": "Bearer Token",
+      "tokenHint": "Optional authentication token for the MCP server",
+      "tokenPlaceholder": "Enter bearer token..."
     },
     "id": "Identifier (unique)",
     "type": "Type",
@@ -1194,7 +1233,12 @@
     "confirm": {
       "deleteTitle": "Confirm Delete",
       "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?"
-    }
+    },
+    "filter": {
+      "search": "Search prompts..."
+    },
+    "noFilterResults": "No matching prompts",
+    "noFilterResultsDescription": "Try adjusting your search or filter criteria"
   },
   "workspace": {
     "title": "Workspace Files",
@@ -1473,7 +1517,9 @@
       "successSingle": "Skill {{name}} installed",
       "successMultiple": "Successfully installed {{count}} skills",
       "noSkillsFound": "No skills found in ZIP file (requires SKILL.md file)"
-    }
+    },
+    "noFilterResults": "No matching skills",
+    "noFilterResultsDescription": "Try adjusting your search or filter criteria"
   },
   "deeplink": {
     "confirmImport": "Confirm Import Provider",
@@ -1540,7 +1586,14 @@
       "skillsPath": "Skills Path",
       "hint": "This will add the Skill repository to the list.",
       "hintDetail": "After adding, you can install specific Skills from the Skills management page."
-    }
+    },
+    "usageApiKey": "API Key",
+    "usageAutoInterval": "Auto Sync Interval",
+    "usageAutoIntervalValue": "Interval Value",
+    "usageBaseUrl": "Base URL",
+    "usageScript": "Usage Script",
+    "usageScriptDisabled": "Usage script disabled",
+    "usageScriptEnabled": "Usage script enabled"
   },
   "iconPicker": {
     "search": "Search Icons",
@@ -1740,7 +1793,33 @@
       "successThresholdLabel": "Recovery Success Threshold",
       "successThresholdExplain": "In half-open state, close circuit breaker after this many successes, making provider available again",
       "errorRateLabel": "Error Rate Threshold",
-      "errorRateExplain": "Open circuit breaker when error rate exceeds this value, even if failure threshold not reached"
+      "errorRateExplain": "Open circuit breaker when error rate exceeds this value, even if failure threshold not reached",
+      "maxRetries": "Max Retries",
+      "nonStreaming": "Non-Streaming Timeout",
+      "streamingFirstByte": "Streaming First Byte Timeout",
+      "streamingIdle": "Streaming Idle Timeout",
+      "timeoutSettings": "Timeout Settings"
+    },
+    "logging": {
+      "disabled": "Logging disabled",
+      "enabled": "Logging enabled",
+      "failed": "Failed to toggle logging"
+    },
+    "server": {
+      "startFailed": "Failed to start proxy server",
+      "started": "Proxy server started"
+    },
+    "stopWithRestoreFailed": "Failed to stop proxy with restore",
+    "stoppedWithRestore": "Proxy stopped and settings restored",
+    "takeover": {
+      "disabled": "Takeover disabled",
+      "enabled": "Takeover enabled",
+      "failed": "Failed to toggle takeover",
+      "tooltip": {
+        "active": "Takeover is active",
+        "broken": "Takeover is broken",
+        "inactive": "Takeover is inactive"
+      }
     }
   },
   "streamCheck": {
@@ -1754,7 +1833,11 @@
     "timeout": "Timeout (seconds)",
     "maxRetries": "Max Retries",
     "degradedThreshold": "Degraded Threshold (ms)",
-    "testPrompt": "Test Prompt"
+    "testPrompt": "Test Prompt",
+    "degraded": "Stream degraded",
+    "error": "Stream check error",
+    "failed": "Stream check failed",
+    "operational": "Stream operational"
   },
   "proxyConfig": {
     "proxyEnabled": "Proxy Enabled",

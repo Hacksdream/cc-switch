@@ -38,7 +38,9 @@
     "reset": "重置",
     "actions": "操作",
     "deleting": "删除中...",
-    "auto": "自动"
+    "auto": "自动",
+    "enabled": "已启用",
+    "notSet": "未设置"
   },
   "apiKeyInput": {
     "placeholder": "请输入API Key",
@@ -458,7 +460,9 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "browseTitle": "选择终端应用程序",
+      "noCustomTerminals": "未添加自定义终端"
     },
     "configDirectoryOverride": "配置目录覆盖（高级）",
     "configDirectoryDescription": "在 WSL 等环境使用 Claude Code 或 Codex 的时候，可手动指定为 WSL 里的配置目录，供应商数据与主环境保持一致。",
@@ -543,7 +547,8 @@
       "pricingLoadFailed": "加载计费配置失败：{{error}}",
       "defaultCostMultiplierRequired": "默认倍率不能为空",
       "defaultCostMultiplierInvalid": "默认倍率格式不正确"
-    }
+    },
+    "saveFailedGeneric": "保存设置失败"
   },
   "apps": {
     "claude": "Claude",
@@ -589,7 +594,14 @@
     "daysAgo": "{{count}} 天前",
     "roleUser": "用户",
     "roleSystem": "系统",
-    "roleTool": "工具"
+    "roleTool": "工具",
+    "conversationHistory": "对话历史",
+    "copyCommand": "复制命令",
+    "copyMessage": "复制消息",
+    "messageCopied": "消息已复制",
+    "noResumeCommand": "没有可用的恢复命令",
+    "resume": "恢复",
+    "resumeTooltip": "恢复此会话"
   },
   "console": {
     "providerSwitchReceived": "收到供应商切换事件:",
@@ -713,7 +725,9 @@
     "testUnavailable": "测速功能不可用",
     "noResult": "未返回结果",
     "testFailed": "测速失败: {{error}}",
-    "status": "状态码：{{code}}"
+    "status": "状态码：{{code}}",
+    "empty": "没有可测试的端点",
+    "notTested": "未测试"
   },
   "providerAdvanced": {
     "testConfig": "模型测试配置",
@@ -748,7 +762,10 @@
     "authJsonHint": "Codex auth.json 配置内容",
     "configToml": "config.toml (TOML)",
     "configTomlHint": "Codex config.toml 配置内容",
-    "apiUrlLabel": "API 请求地址"
+    "apiUrlLabel": "API 请求地址",
+    "modelName": "模型名称",
+    "modelNameHint": "用于此供应商的模型标识符",
+    "modelNamePlaceholder": "例如 gpt-4o"
   },
   "geminiConfig": {
     "envFile": "环境变量 (.env)",
@@ -883,7 +900,26 @@
     "costBreakdown": "成本明细",
     "performance": "性能信息",
     "latency": "延迟",
-    "errorMessage": "错误信息"
+    "errorMessage": "错误信息",
+    "addPricing": "添加定价",
+    "avgCost": "平均成本",
+    "avgLatency": "平均延迟",
+    "editPricing": "编辑定价",
+    "inputCostPerMillion": "每百万输入 Token 成本",
+    "invalidPrice": "无效价格",
+    "invalidTimeRange": "无效时间范围",
+    "invalidTimeRangeOrder": "开始时间必须早于结束时间",
+    "modelId": "模型 ID",
+    "modelIdRequired": "模型 ID 为必填项",
+    "never": "从未",
+    "outputCostPerMillion": "每百万输出 Token 成本",
+    "pricingAdded": "定价已添加",
+    "pricingUpdated": "定价已更新",
+    "requestId": "请求 ID",
+    "requests": "请求数",
+    "successRate": "成功率",
+    "timeRangeTooLarge": "时间范围过大",
+    "tokens": "Token 数"
   },
   "usageScript": {
     "title": "配置用量查询",
@@ -1064,7 +1100,10 @@
       "headers": "请求头（可选）",
       "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
       "preview": "配置预览",
-      "apply": "应用配置"
+      "apply": "应用配置",
+      "token": "Bearer 令牌",
+      "tokenHint": "MCP 服务器的可选认证令牌",
+      "tokenPlaceholder": "输入 Bearer 令牌..."
     },
     "id": "标识 (唯一)",
     "type": "类型",
@@ -1194,7 +1233,12 @@
     "confirm": {
       "deleteTitle": "确认删除",
       "deleteMessage": "确定要删除提示词 \"{{name}}\" 吗？"
-    }
+    },
+    "filter": {
+      "search": "搜索提示词..."
+    },
+    "noFilterResults": "没有匹配的提示词",
+    "noFilterResultsDescription": "请尝试调整搜索或筛选条件"
   },
   "workspace": {
     "title": "Workspace 文件管理",
@@ -1473,7 +1517,9 @@
       "successSingle": "技能 {{name}} 已安装",
       "successMultiple": "成功安装 {{count}} 个技能",
       "noSkillsFound": "ZIP 文件中未找到技能（需包含 SKILL.md 文件）"
-    }
+    },
+    "noFilterResults": "没有匹配的技能",
+    "noFilterResultsDescription": "请尝试调整搜索或筛选条件"
   },
   "deeplink": {
     "confirmImport": "确认导入供应商配置",
@@ -1540,7 +1586,14 @@
       "skillsPath": "Skills 路径",
       "hint": "此操作将添加 Skill 仓库到列表。",
       "hintDetail": "添加后，您可以在 Skills 管理界面中选择安装具体的 Skill。"
-    }
+    },
+    "usageApiKey": "API 密钥",
+    "usageAutoInterval": "自动同步间隔",
+    "usageAutoIntervalValue": "间隔值",
+    "usageBaseUrl": "基础 URL",
+    "usageScript": "用量脚本",
+    "usageScriptDisabled": "用量脚本已禁用",
+    "usageScriptEnabled": "用量脚本已启用"
   },
   "iconPicker": {
     "search": "搜索图标",
@@ -1740,7 +1793,33 @@
       "successThresholdLabel": "恢复成功阈值",
       "successThresholdExplain": "半开状态下，成功达到此次数时关闭熔断器，供应商恢复可用",
       "errorRateLabel": "错误率阈值",
-      "errorRateExplain": "错误率超过此值时，即使未达到失败阈值也会打开熔断器"
+      "errorRateExplain": "错误率超过此值时，即使未达到失败阈值也会打开熔断器",
+      "maxRetries": "最大重试次数",
+      "nonStreaming": "非流式超时",
+      "streamingFirstByte": "流式首字节超时",
+      "streamingIdle": "流式空闲超时",
+      "timeoutSettings": "超时设置"
+    },
+    "logging": {
+      "disabled": "日志已禁用",
+      "enabled": "日志已启用",
+      "failed": "切换日志失败"
+    },
+    "server": {
+      "startFailed": "启动代理服务器失败",
+      "started": "代理服务器已启动"
+    },
+    "stopWithRestoreFailed": "停止代理并恢复失败",
+    "stoppedWithRestore": "代理已停止，设置已恢复",
+    "takeover": {
+      "disabled": "接管已禁用",
+      "enabled": "接管已启用",
+      "failed": "切换接管失败",
+      "tooltip": {
+        "active": "接管已激活",
+        "broken": "接管已中断",
+        "inactive": "接管未激活"
+      }
     }
   },
   "streamCheck": {
@@ -1754,7 +1833,11 @@
     "timeout": "超时时间（秒）",
     "maxRetries": "最大重试次数",
     "degradedThreshold": "降级阈值（毫秒）",
-    "testPrompt": "检查提示词"
+    "testPrompt": "检查提示词",
+    "degraded": "流传输降级",
+    "error": "流检查错误",
+    "failed": "流检查失败",
+    "operational": "流传输正常"
   },
   "proxyConfig": {
     "proxyEnabled": "代理总开关",
