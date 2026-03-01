@@ -74,6 +74,8 @@
     "noProvidersDescription": "点击下方的\"导入当前配置\"按钮导入已有配置，或手动添加新的供应商",
     "importCurrent": "导入当前配置",
     "importCurrentDescription": "将当前正在使用的配置导入为默认供应商",
+    "syncFromConfig": "从配置同步",
+    "syncFromConfigTooltip": "从配置文件重新导入供应商（仅新增供应商）",
     "currentlyUsing": "当前使用",
     "enable": "启用",
     "inUse": "使用中",

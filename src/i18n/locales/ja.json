@@ -74,6 +74,8 @@
     "noProvidersDescription": "下の「現在の設定をインポート」ボタンで既存の設定を取り込むか、新しいプロバイダーを手動で追加してください",
     "importCurrent": "現在の設定をインポート",
     "importCurrentDescription": "現在使用中の設定をデフォルトプロバイダーとしてインポート",
+    "syncFromConfig": "設定から同期",
+    "syncFromConfigTooltip": "設定ファイルからプロバイダーを再インポート（新規のみ）",
     "currentlyUsing": "現在使用中",
     "enable": "有効化",
     "inUse": "使用中",

@@ -13,7 +13,7 @@ import {
   type CSSProperties,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { Search, X, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -394,6 +394,28 @@ export function ProviderList({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {(appId === "opencode" || appId === "openclaw") && (
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => importMutation.mutate()}
+            disabled={importMutation.isPending}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            title={t("provider.syncFromConfigTooltip", {
+              defaultValue: "Import new providers from config file",
+            })}
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5${importMutation.isPending ? " animate-spin" : ""}`}
+            />
+            {t("provider.syncFromConfig", {
+              defaultValue: "Sync from Config",
+            })}
+          </Button>
+        </div>
+      )}
 
       {filteredProviders.length === 0 ? (
         <div className="px-6 py-8 text-sm text-center border border-dashed rounded-lg border-border text-muted-foreground">

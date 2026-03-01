@@ -74,6 +74,8 @@
     "noProvidersDescription": "Import your current live config below, or manually add a new provider",
     "importCurrent": "Import Current Config",
     "importCurrentDescription": "Import current live config as default provider",
+    "syncFromConfig": "Sync from Config",
+    "syncFromConfigTooltip": "Re-import providers from config file (new providers only)",
     "currentlyUsing": "Currently Using",
     "enable": "Enable",
     "inUse": "In Use",
