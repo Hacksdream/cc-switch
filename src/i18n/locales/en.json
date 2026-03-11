@@ -53,8 +53,15 @@
   },
   "claudeConfig": {
     "configLabel": "Claude Code settings.json (JSON) *",
+    "writeCommonConfig": "Write Common Config",
+    "editCommonConfig": "Edit Common Config",
+    "editCommonConfigTitle": "Edit Common Config Snippet",
+    "commonConfigHint": "This snippet will be merged into settings.json when 'Write Common Config' is checked",
     "fullSettingsHint": "Full Claude Code settings.json content",
-    "fragmentSettingsHint": "Config snippet for this provider; will be written to settings.json when activated",
+    "extractFromCurrent": "Extract from Editor",
+    "extractNoCommonConfig": "No common config available to extract from editor",
+    "extractFailed": "Extract failed: {{error}}",
+    "saveFailed": "Save failed: {{error}}",
     "hideAttribution": "Hide AI Attribution",
     "alwaysThinking": "Extended Thinking",
     "enableTeammates": "Teammates Mode"
@@ -76,8 +83,6 @@
     "noProvidersDescription": "Import your current live config below, or manually add a new provider",
     "importCurrent": "Import Current Config",
     "importCurrentDescription": "Import current live config as default provider",
-    "syncFromConfig": "Sync from Config",
-    "syncFromConfigTooltip": "Re-import providers from config file (new providers only)",
     "currentlyUsing": "Currently Using",
     "enable": "Enable",
     "inUse": "In Use",
@@ -122,7 +127,11 @@
     "notes": "Notes",
     "notesPlaceholder": "e.g., Company dedicated account",
     "configJson": "Config JSON",
+    "writeCommonConfig": "Write common config",
+    "editCommonConfigButton": "Edit common config",
     "configJsonHint": "Please fill in complete Claude Code configuration",
+    "editCommonConfigTitle": "Edit common config snippet",
+    "editCommonConfigHint": "Common config snippet will be merged into all providers that enable it",
     "addProvider": "Add Provider",
     "sortUpdated": "Sort order updated",
     "usageSaved": "Usage query configuration saved",
@@ -136,7 +145,9 @@
         "oauthHint": "Google official uses OAuth personal authentication, no need to fill in API Key. The browser will automatically open for login on first use.",
         "apiKeyPlaceholder": "Enter Gemini API Key"
       }
-    }
+    },
+    "syncFromConfig": "Sync from Config",
+    "syncFromConfigTooltip": "Re-import providers from config file (new providers only)"
   },
   "notifications": {
     "providerAdded": "Provider added",
@@ -163,6 +174,7 @@
     "settingsSaved": "Settings saved",
     "settingsSaveFailed": "Failed to save settings: {{error}}",
     "openAIChatFormatHint": "This provider uses OpenAI Chat format and requires the proxy service to be enabled",
+    "openAIFormatHint": "This provider uses OpenAI-compatible format and requires the proxy service to be enabled",
     "openLinkFailed": "Failed to open link",
     "openclawModelsRegistered": "Models have been registered to /model list",
     "openclawDefaultModelSet": "Set as default model",
@@ -180,10 +192,25 @@
       "message": "Local proxy is an advanced feature. Please make sure you understand how it works before enabling.\n\nWe recommend consulting the relevant documentation or your provider for proper configuration.",
       "confirm": "I understand, enable"
     },
+    "failover": {
+      "title": "Enable Failover",
+      "message": "Failover is an advanced feature. Please make sure you understand how it works before enabling.\n\nWe recommend configuring provider priorities in the failover queue first.",
+      "confirm": "I understand, enable"
+    },
     "usage": {
       "title": "Configure Usage Query",
       "message": "Usage query requires a custom script or API parameters. Please make sure you have obtained the necessary information from your provider.\n\nIf unsure how to configure, please consult your provider's documentation first.",
       "confirm": "I understand, configure"
+    },
+    "streamCheck": {
+      "title": "Model Health Check",
+      "message": "Health check tests provider connectivity by sending a direct API request. The following may cause check failures:\n\n• Official providers (uses OAuth login, no standalone API Key)\n• Some relay services (verify requests come from Claude Code CLI)\n• AWS Bedrock (uses IAM signature authentication)\n\nA failed check does not mean the provider is unusable — it only means it cannot be verified via a standalone request. Please refer to actual behavior within the application.",
+      "confirm": "I understand, proceed"
+    },
+    "autoSync": {
+      "title": "Enable Auto Sync",
+      "message": "When auto sync is enabled, every database change will be automatically uploaded to the WebDAV server.\n\nThis may result in significant network traffic. Please ensure your network and WebDAV service can handle frequent data transfers.",
+      "confirm": "I understand, enable"
     }
   },
   "settings": {
@@ -202,6 +229,8 @@
         "description": "Control proxy service toggle, view status and port info",
         "enableFeature": "Show Proxy Toggle on Main Page",
         "enableFeatureDescription": "When enabled, the proxy and failover toggles will appear at the top of the main page",
+        "enableFailoverToggle": "Show Failover Toggle on Main Page",
+        "enableFailoverToggleDescription": "When enabled, the failover toggle will appear independently at the top of the main page",
         "running": "Running",
         "stopped": "Stopped"
       },
@@ -244,6 +273,18 @@
         "thinkingSignatureDescription": "When an Anthropic-type provider returns thinking signature incompatibility or illegal request errors, automatically removes incompatible thinking-related blocks and retries once with the same provider",
         "thinkingBudget": "Thinking Budget Rectification",
         "thinkingBudgetDescription": "When an Anthropic-type provider returns budget_tokens constraint errors (such as at least 1024), automatically normalizes thinking to enabled, sets thinking budget to 32000, and raises max_tokens to 64000 if needed, then retries once"
+      },
+      "optimizer": {
+        "title": "Bedrock Request Optimizer",
+        "description": "Automatically optimize Thinking and Cache configuration before sending requests (only applies to Bedrock providers)",
+        "enabled": "Enable Optimizer",
+        "thinkingOptimizer": "Thinking Optimization",
+        "thinkingOptimizerDescription": "Automatically enable Adaptive Thinking for Opus/Sonnet, and inject Extended Thinking for legacy models",
+        "cacheInjection": "Cache Injection",
+        "cacheInjectionDescription": "Automatically inject cache breakpoints at key positions in requests to reduce duplicate token billing",
+        "cacheTtl": "Cache TTL",
+        "cacheTtl5m": "5 minutes",
+        "cacheTtl1h": "1 hour"
       },
       "logConfig": {
         "title": "Log Management",
@@ -372,7 +413,7 @@
       "saveAndTestSuccess": "Config saved, connection OK",
       "saveAndTestFailed": "Config saved, but connection test failed: {{error}}",
       "noRemoteData": "No sync data found on the remote server",
-      "incompatibleVersion": "Remote data version incompatible (v{{version}}), current supports v2",
+      "incompatibleVersion": "Remote data is incompatible (protocol v{{protocolVersion}}, database {{dbCompatVersion}}). This client supports protocol v2 / db-v6.",
       "unsaved": "Unsaved",
       "saved": "Saved",
       "unsavedChanges": "Please save config first",
@@ -383,7 +424,10 @@
         "title": "Restore from Cloud",
         "deviceName": "Uploaded by",
         "createdAt": "Uploaded at",
+        "path": "Remote path",
+        "dbCompat": "DB compatibility",
         "artifacts": "Contents",
+        "legacyNotice": "A legacy remote path was detected. After restoring, the next upload will write to the new v2/db-v6 path.",
         "warning": "This will overwrite all local data and skill configurations",
         "confirm": "Confirm Restore"
       },
@@ -396,7 +440,10 @@
         "existingData": "Existing cloud data",
         "deviceName": "Uploaded by",
         "createdAt": "Uploaded at",
+        "path": "Remote path",
+        "dbCompat": "DB compatibility",
         "warning": "This will overwrite existing sync data on the remote server",
+        "legacyNotice": "Legacy remote data was detected. This upload will write to the new v2/db-v6 path and will not overwrite the legacy path.",
         "confirm": "Confirm Upload"
       }
     },
@@ -436,8 +483,6 @@
       "title": "Preferred Terminal",
       "description": "Choose which terminal app to use when clicking the terminal button",
       "fallbackHint": "If the selected terminal is unavailable, the system default will be used",
-      "customTerminals": "Custom Terminals",
-      "browseTerminal": "Browse Terminal",
       "options": {
         "macos": {
           "terminal": "Terminal.app",
@@ -460,9 +505,7 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      },
-      "browseTitle": "Select Terminal Application",
-      "noCustomTerminals": "No custom terminals added"
+      }
     },
     "configDirectoryOverride": "Configuration Directory Override (Advanced)",
     "configDirectoryDescription": "When using Claude Code or Codex in environments like WSL, you can manually specify the configuration directory to the one in WSL to keep provider data consistent with the main environment.",
@@ -548,7 +591,7 @@
       "defaultCostMultiplierRequired": "Default multiplier is required",
       "defaultCostMultiplierInvalid": "Invalid multiplier format"
     },
-    "saveFailedGeneric": "Failed to save settings"
+    "saveFailedGeneric": "Save failed, please try again"
   },
   "apps": {
     "claude": "Claude",
@@ -584,6 +627,14 @@
     "projectDirCopied": "Directory copied",
     "copySourcePath": "Copy source file",
     "sourcePathCopied": "Source file copied",
+    "delete": "Delete session",
+    "deleting": "Deleting...",
+    "deleteTooltip": "Permanently delete this local session record",
+    "deleteConfirmTitle": "Delete session",
+    "deleteConfirmMessage": "This will permanently delete the local session \"{{title}}\"\nSession ID: {{sessionId}}\n\nThis action cannot be undone.",
+    "deleteConfirmAction": "Delete session",
+    "sessionDeleted": "Session deleted",
+    "deleteFailed": "Failed to delete session: {{error}}",
     "loadingMessages": "Loading transcript...",
     "emptySession": "No messages available",
     "clickToCopyPath": "Click to copy path",
@@ -595,13 +646,13 @@
     "roleUser": "User",
     "roleSystem": "System",
     "roleTool": "Tool",
-    "conversationHistory": "Conversation History",
+    "resume": "Resume Session",
+    "resumeTooltip": "Resume this session in terminal",
+    "noResumeCommand": "This session cannot be resumed",
     "copyCommand": "Copy Command",
     "copyMessage": "Copy Message",
     "messageCopied": "Message copied",
-    "noResumeCommand": "No resume command available",
-    "resume": "Resume",
-    "resumeTooltip": "Resume this session"
+    "conversationHistory": "Conversation History"
   },
   "console": {
     "providerSwitchReceived": "Received provider switch event:",
@@ -655,7 +706,14 @@
       "aicodemirror": "AICodeMirror is an official partner of CC Switch. Register using this link to get 20% off!",
       "aicoding": "AI Coding offers an exclusive discount for CC Switch users — 10% off your first top-up!",
       "crazyrouter": "CrazyRouter offers an exclusive bonus for CC Switch users — 30% extra credit on your first top-up!",
-      "sssaicode": "SSAI Code offers an exclusive bonus for CC Switch users — $10 extra credit on every top-up!"
+      "sssaicode": "SSAI Code offers an exclusive bonus for CC Switch users — $10 extra credit on every top-up!",
+      "siliconflow": "SiliconFlow is an official partner of CC Switch",
+      "ucloud": "Compshare offers an exclusive bonus for CC Switch users — register via this link to get ¥5 platform trial credit!",
+      "micu": "Micu is an official partner of CC Switch",
+      "x-code": "XCodeAPI offers a special bonus for CC Switch users — register via this link and get 10% extra credit on your first order (contact admin to claim)"
+    },
+    "presets": {
+      "ucloud": "Compshare"
     },
     "parameterConfig": "Parameter Config - {{name}} *",
     "mainModel": "Main Model (optional)",
@@ -685,10 +743,12 @@
     "apiFormatHint": "Select the input format for the provider's API",
     "apiFormatAnthropic": "Anthropic Messages (Native)",
     "apiFormatOpenAIChat": "OpenAI Chat Completions (Requires proxy)",
+    "apiFormatOpenAIResponses": "OpenAI Responses API (Requires proxy)",
     "authField": "Auth Field",
-    "authFieldAuthToken": "Auth Token (Default)",
-    "authFieldApiKey": "API Key",
-    "authFieldHint": "Most third-party providers use Auth Token; a few require API Key",
+    "authFieldAuthToken": "ANTHROPIC_AUTH_TOKEN (Default)",
+    "authFieldApiKey": "ANTHROPIC_API_KEY",
+    "authFieldHint": "Select the authentication env variable name for the config",
+    "apiHintResponses": "💡 Fill in OpenAI Responses API compatible service endpoint, avoid trailing slash",
     "anthropicDefaultHaikuModel": "Default Haiku Model",
     "anthropicDefaultSonnetModel": "Default Sonnet Model",
     "anthropicDefaultOpusModel": "Default Opus Model",
@@ -725,9 +785,7 @@
     "testUnavailable": "Speed test unavailable",
     "noResult": "No result returned",
     "testFailed": "Speed test failed: {{error}}",
-    "status": "Status: {{code}}",
-    "empty": "No endpoints to test",
-    "notTested": "Not tested"
+    "empty": "No endpoints"
   },
   "providerAdvanced": {
     "testConfig": "Model Test Config",
@@ -762,18 +820,36 @@
     "authJsonHint": "Codex auth.json configuration content",
     "configToml": "config.toml (TOML)",
     "configTomlHint": "Codex config.toml configuration content",
+    "writeCommonConfig": "Write Common Config",
+    "editCommonConfig": "Edit Common Config",
+    "editCommonConfigTitle": "Edit Codex Common Config Snippet",
+    "commonConfigHint": "This snippet will be appended to the end of config.toml when 'Write Common Config' is checked",
     "apiUrlLabel": "API Request URL",
+    "extractFromCurrent": "Extract from Editor",
+    "extractNoCommonConfig": "No common config available to extract from editor",
+    "extractFailed": "Extract failed: {{error}}",
+    "saveFailed": "Save failed: {{error}}",
+    "modelNameHint": "Specify the model to use, will be auto-updated in config.toml",
     "modelName": "Model Name",
-    "modelNameHint": "The model identifier to use with this provider",
-    "modelNamePlaceholder": "e.g. gpt-4o"
+    "modelNamePlaceholder": "e.g., gpt-5-codex"
   },
   "geminiConfig": {
     "envFile": "Environment Variables (.env)",
     "envFileHint": "Configure Gemini environment variables in .env format",
     "configJson": "Configuration File (config.json)",
     "configJsonHint": "Configure Gemini extended parameters in JSON format (optional)",
+    "writeCommonConfig": "Write Common Config",
+    "editCommonConfig": "Edit Common Config",
+    "editCommonConfigTitle": "Edit Gemini Common Config Snippet",
+    "commonConfigHint": "This snippet writes to Gemini .env (GOOGLE_GEMINI_BASE_URL and GEMINI_API_KEY are not allowed)",
+    "extractFromCurrent": "Extract from Editor",
+    "extractNoCommonConfig": "No common config available to extract from editor",
+    "extractFailed": "Extract failed: {{error}}",
+    "saveFailed": "Save failed: {{error}}",
     "extractedConfigInvalid": "Extracted config format is invalid",
     "invalidJsonFormat": "Common config snippet format error (must be valid JSON)",
+    "commonConfigInvalidKeys": "Common config snippet must not include GOOGLE_GEMINI_BASE_URL or GEMINI_API_KEY (found: {{keys}})",
+    "commonConfigInvalidValues": "Common config snippet values must be strings",
     "noCommonConfigToApply": "Common config snippet is empty or has no applicable entries",
     "configMergeFailed": "Config merge failed: {{error}}",
     "configReplaceFailed": "Config replace failed: {{error}}"
@@ -901,25 +977,27 @@
     "performance": "Performance",
     "latency": "Latency",
     "errorMessage": "Error Message",
-    "addPricing": "Add Pricing",
-    "avgCost": "Avg Cost",
-    "avgLatency": "Avg Latency",
-    "editPricing": "Edit Pricing",
-    "inputCostPerMillion": "Input Cost per Million Tokens",
-    "invalidPrice": "Invalid price",
-    "invalidTimeRange": "Invalid time range",
-    "invalidTimeRangeOrder": "Start time must be before end time",
+    "requests": "Requests",
+    "tokens": "Tokens",
+    "avgCost": "Average Cost",
+    "avgLatency": "Average Latency",
+    "successRate": "Success Rate",
+    "requestId": "Request ID",
+    "never": "Never",
     "modelId": "Model ID",
     "modelIdRequired": "Model ID is required",
-    "never": "Never",
-    "outputCostPerMillion": "Output Cost per Million Tokens",
+    "inputCostPerMillion": "Input Cost (per million tokens, USD)",
+    "outputCostPerMillion": "Output Cost (per million tokens, USD)",
+    "invalidPrice": "Price must be non-negative",
+    "invalidTimeRange": "Please select complete start/end time",
+    "invalidTimeRangeOrder": "Start time cannot be later than end time",
+    "timeRangeTooLarge": "Time range is too large, please narrow it down",
+    "addPricing": "Add Pricing",
+    "editPricing": "Edit Pricing",
     "pricingAdded": "Pricing added",
     "pricingUpdated": "Pricing updated",
-    "requestId": "Request ID",
-    "requests": "Requests",
-    "successRate": "Success Rate",
-    "timeRangeTooLarge": "Time range is too large",
-    "tokens": "Tokens"
+    "cacheReadCostPerMillion": "Cache Read Cost (per million tokens, USD)",
+    "cacheCreationCostPerMillion": "Cache Write Cost (per million tokens, USD)"
   },
   "usageScript": {
     "title": "Configure Usage Query",
@@ -1025,15 +1103,6 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
-      },
-      "filter": {
-        "searchPlaceholder": "Search MCP servers...",
-        "allApps": "All Apps",
-        "allStatus": "All Status",
-        "enabled": "Enabled",
-        "disabled": "Disabled",
-        "noResults": "No matching MCP servers",
-        "noResultsHint": "Try adjusting your search or filter criteria"
       }
     },
     "userLevelPath": "User-level MCP path",
@@ -1100,10 +1169,7 @@
       "headers": "Headers (optional)",
       "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
       "preview": "Configuration Preview",
-      "apply": "Apply Configuration",
-      "token": "Bearer Token",
-      "tokenHint": "Optional authentication token for the MCP server",
-      "tokenPlaceholder": "Enter bearer token..."
+      "apply": "Apply Configuration"
     },
     "id": "Identifier (unique)",
     "type": "Type",
@@ -1167,15 +1233,6 @@
         "description": "Context7 documentation search tool providing latest library docs and code examples, with higher limits when configured with a key"
       }
     },
-    "filter": {
-      "searchPlaceholder": "Search MCP servers...",
-      "allApps": "All Apps",
-      "allStatus": "All Status",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "noResults": "No matching MCP servers",
-      "noResultsHint": "Try adjusting your search or filter criteria"
-    },
     "connectivity": {
       "test": "Test Connectivity",
       "testing": "Testing...",
@@ -1187,9 +1244,9 @@
       "title": "Import MCP Servers from JSON",
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
-      "selected": "{{count}} selected",
-      "import": "Import Selected",
-      "success": "Successfully imported {{count}} MCP server(s)",
+      "selected": "selected",
+      "import": "Import",
+      "success": "MCP servers imported successfully",
       "empty": "No MCP servers found in file",
       "parseError": "Failed to parse JSON file"
     }
@@ -1233,12 +1290,7 @@
     "confirm": {
       "deleteTitle": "Confirm Delete",
       "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?"
-    },
-    "filter": {
-      "search": "Search prompts..."
-    },
-    "noFilterResults": "No matching prompts",
-    "noFilterResultsDescription": "Try adjusting your search or filter criteria"
+    }
   },
   "workspace": {
     "title": "Workspace Files",
@@ -1282,6 +1334,7 @@
     }
   },
   "openclaw": {
+    "backupCreated": "Backup created: {{path}}",
     "providerKey": "Provider Key",
     "providerKeyPlaceholder": "my-provider",
     "providerKeyHint": "Unique identifier in config file. Cannot be changed after creation. Use lowercase letters, numbers, and hyphens only.",
@@ -1305,6 +1358,7 @@
     "reasoning": "Reasoning Mode",
     "reasoningOn": "Enabled",
     "reasoningOff": "Disabled",
+    "inputTypes": "Input Types",
     "inputCost": "Input Cost ($/M tokens)",
     "outputCost": "Output Cost ($/M tokens)",
     "advancedOptions": "Advanced Options",
@@ -1312,9 +1366,15 @@
     "cacheWriteCost": "Cache Write Cost ($/M tokens)",
     "cacheCostHint": "Cache costs are used to calculate Prompt Caching costs. Leave empty if not using caching.",
     "modelsHint": "Configure the models supported by this provider. Model ID is used for API calls, Display Name for the interface.",
+    "userAgent": "Send User-Agent",
+    "userAgentHint": "Some providers require a browser User-Agent header to work properly.",
     "env": {
       "title": "Environment Variables",
       "description": "Manage environment variables in openclaw.json (API keys, custom variables, etc.)",
+      "editorHint": "Edit the full env section as JSON. Nested objects such as env.vars and env.shellEnv are supported.",
+      "objectRequired": "OpenClaw env must be a JSON object.",
+      "invalidJson": "OpenClaw env must be valid JSON.",
+      "empty": "OpenClaw env cannot be empty. Use {} for an empty object.",
       "keyPlaceholder": "Variable name",
       "valuePlaceholder": "Value",
       "add": "Add Variable",
@@ -1327,12 +1387,14 @@
       "title": "Tool Permissions",
       "description": "Manage tool permissions in openclaw.json (allow/deny lists)",
       "profile": "Permission Profile",
-      "profiles": {
-        "default": "Default",
-        "strict": "Strict",
-        "permissive": "Permissive",
-        "custom": "Custom"
-      },
+      "profileMinimal": "Minimal",
+      "profileCoding": "Coding",
+      "profileMessaging": "Messaging",
+      "profileFull": "Full",
+      "profileUnset": "Not set",
+      "unsupportedProfileTitle": "Unsupported tools profile detected",
+      "unsupportedProfileDescription": "The current tools.profile value '{{value}}' is not in the supported OpenClaw list. It will be preserved until you choose a new value.",
+      "unsupportedProfileLabel": "unsupported",
       "allowList": "Allow List",
       "denyList": "Deny List",
       "patternPlaceholder": "Tool name or pattern",
@@ -1346,20 +1408,35 @@
       "title": "Agents Config",
       "description": "Manage agents.defaults in openclaw.json (default model, runtime parameters, etc.)",
       "modelSection": "Model Configuration",
-      "primaryModel": "Primary Model",
-      "primaryModelHint": "Set via the \"Set as Default Model\" button in the provider list",
+      "primaryModel": "Default Model",
+      "primaryModelHint": "Select from models of configured providers",
       "notSet": "Not set",
       "fallbackModels": "Fallback Models",
-      "fallbackModelsHint": "Comma-separated, ordered by priority",
+      "fallbackModelsHint": "When the primary model is unavailable, fallbacks are tried in order",
+      "addFallback": "Add fallback model",
+      "noModels": "No configured provider models. Please add an OpenClaw provider first.",
+      "notInList": "{{value}} (not configured)",
       "runtimeSection": "Runtime Parameters",
       "workspace": "Workspace Path",
       "timeout": "Timeout (seconds)",
       "contextTokens": "Context Tokens",
       "maxConcurrent": "Max Concurrent",
+      "legacyTimeoutTitle": "Legacy timeout detected",
+      "legacyTimeoutDescription": "This config still uses agents.defaults.timeout. Saving here will migrate it to timeoutSeconds.",
       "saveSuccess": "Agents config saved",
       "saveFailed": "Failed to save agents config",
       "loadFailed": "Failed to load agents config"
-    }
+    },
+    "health": {
+      "title": "OpenClaw config warnings detected",
+      "invalidToolsProfile": "tools.profile contains an unsupported value. OpenClaw currently expects minimal, coding, messaging, or full.",
+      "legacyTimeout": "agents.defaults.timeout is deprecated. Save the Agents panel to migrate it to timeoutSeconds.",
+      "stringifiedEnvVars": "env.vars should be an object, but the current value looks stringified or malformed.",
+      "stringifiedShellEnv": "env.shellEnv should be an object, but the current value looks stringified or malformed.",
+      "parseFailed": "openclaw.json could not be parsed as valid JSON5. Fix the file before editing it here."
+    },
+    "primaryModel": "Primary Model",
+    "fallbackModel": "Fallback Model"
   },
   "env": {
     "warning": {
@@ -1483,12 +1560,7 @@
       "installed": "Installed",
       "uninstalled": "Not installed",
       "repo": "Filter by repo",
-      "allRepos": "All repos",
-      "search": "Search skills...",
-      "allApps": "All Apps",
-      "allStatus": "All Status",
-      "enabled": "Enabled",
-      "disabled": "Disabled"
+      "allRepos": "All repos"
     },
     "noResults": "No matching skills found",
     "noInstalled": "No skills installed",
@@ -1517,9 +1589,7 @@
       "successSingle": "Skill {{name}} installed",
       "successMultiple": "Successfully installed {{count}} skills",
       "noSkillsFound": "No skills found in ZIP file (requires SKILL.md file)"
-    },
-    "noFilterResults": "No matching skills",
-    "noFilterResultsDescription": "Try adjusting your search or filter criteria"
+    }
   },
   "deeplink": {
     "confirmImport": "Confirm Import Provider",
@@ -1587,13 +1657,13 @@
       "hint": "This will add the Skill repository to the list.",
       "hintDetail": "After adding, you can install specific Skills from the Skills management page."
     },
-    "usageApiKey": "API Key",
-    "usageAutoInterval": "Auto Sync Interval",
-    "usageAutoIntervalValue": "Interval Value",
-    "usageBaseUrl": "Base URL",
-    "usageScript": "Usage Script",
-    "usageScriptDisabled": "Usage script disabled",
-    "usageScriptEnabled": "Usage script enabled"
+    "usageScript": "Usage Query",
+    "usageScriptEnabled": "Enabled",
+    "usageScriptDisabled": "Disabled",
+    "usageApiKey": "Usage API Key",
+    "usageBaseUrl": "Usage Query URL",
+    "usageAutoInterval": "Auto Query",
+    "usageAutoIntervalValue": "Every {{minutes}} minutes"
   },
   "iconPicker": {
     "search": "Search Icons",
@@ -1612,7 +1682,8 @@
     "selectIcon": "Select Icon",
     "preview": "Preview",
     "clickToChange": "Click to change icon",
-    "clickToSelect": "Click to select icon"
+    "clickToSelect": "Click to select icon",
+    "color": "Icon Color"
   },
   "migration": {
     "success": "Configuration migrated successfully",
@@ -1654,7 +1725,7 @@
       "currentProvider": "Current Provider:",
       "waitingFirstRequest": "Current Provider: Waiting for first request...",
       "stoppedTitle": "Proxy Service Stopped",
-      "stoppedDescription": "Use the toggle in the top right to start the service",
+      "stoppedDescription": "Use the toggle above to start the service",
       "openSettings": "Configure Proxy Service",
       "stats": {
         "activeConnections": "Active Connections",
@@ -1745,6 +1816,17 @@
       "restartRequired": "Restart proxy service for address or port changes to take effect"
     },
     "switchFailed": "Switch failed: {{error}}",
+    "takeover": {
+      "hint": "Select apps to take over — once enabled, requests from that app will be routed through the local proxy",
+      "enabled": "{{app}} takeover enabled",
+      "disabled": "{{app}} takeover disabled",
+      "failed": "Failed to toggle takeover",
+      "tooltip": {
+        "active": "{{appLabel}} is intercepting - {{address}}:{{port}}\nSwitch provider for hot switching",
+        "broken": "{{appLabel}} is intercepting, but proxy service is not running",
+        "inactive": "Intercept {{appLabel}}'s live config to route requests through local proxy"
+      }
+    },
     "failover": {
       "proxyRequired": "Proxy service must be started to configure failover",
       "autoSwitch": "Auto Failover",
@@ -1795,32 +1877,26 @@
       "errorRateLabel": "Error Rate Threshold",
       "errorRateExplain": "Open circuit breaker when error rate exceeds this value, even if failure threshold not reached",
       "maxRetries": "Max Retries",
-      "nonStreaming": "Non-Streaming Timeout",
+      "timeoutSettings": "Timeout Settings",
       "streamingFirstByte": "Streaming First Byte Timeout",
       "streamingIdle": "Streaming Idle Timeout",
-      "timeoutSettings": "Timeout Settings"
+      "nonStreaming": "Non-Streaming Timeout",
+      "maxRetriesHint": "Number of retries on request failure (0-10)",
+      "streamingFirstByteHint": "Max time to wait for first data chunk, range 1-120s, default 60s",
+      "streamingIdleHint": "Max interval between data chunks, range 60-600s, 0 to disable (prevents mid-stream stalls)",
+      "nonStreamingHint": "Total timeout for non-streaming requests, range 60-1200s, default 600s (10 min)"
     },
     "logging": {
-      "disabled": "Logging disabled",
       "enabled": "Logging enabled",
+      "disabled": "Logging disabled",
       "failed": "Failed to toggle logging"
     },
     "server": {
-      "startFailed": "Failed to start proxy server",
-      "started": "Proxy server started"
+      "started": "Proxy service started - {{address}}:{{port}}",
+      "startFailed": "Failed to start proxy service: {{detail}}"
     },
-    "stopWithRestoreFailed": "Failed to stop proxy with restore",
-    "stoppedWithRestore": "Proxy stopped and settings restored",
-    "takeover": {
-      "disabled": "Takeover disabled",
-      "enabled": "Takeover enabled",
-      "failed": "Failed to toggle takeover",
-      "tooltip": {
-        "active": "Takeover is active",
-        "broken": "Takeover is broken",
-        "inactive": "Takeover is inactive"
-      }
-    }
+    "stoppedWithRestore": "Proxy service stopped, all takeover configs restored",
+    "stopWithRestoreFailed": "Stop failed: {{detail}}"
   },
   "streamCheck": {
     "configSaved": "Health check config saved",
@@ -1834,10 +1910,10 @@
     "maxRetries": "Max Retries",
     "degradedThreshold": "Degraded Threshold (ms)",
     "testPrompt": "Test Prompt",
-    "degraded": "Stream degraded",
-    "error": "Stream check error",
-    "failed": "Stream check failed",
-    "operational": "Stream operational"
+    "operational": "{{providerName}} is operational ({{responseTimeMs}}ms)",
+    "degraded": "{{providerName}} is slow ({{responseTimeMs}}ms)",
+    "failed": "{{providerName}} check failed: {{message}}",
+    "error": "{{providerName}} check error: {{error}}"
   },
   "proxyConfig": {
     "proxyEnabled": "Proxy Enabled",
@@ -1859,11 +1935,28 @@
     "failureThreshold": "Failure Threshold",
     "successThreshold": "Success Threshold",
     "timeoutSeconds": "Timeout (seconds)",
-    "errorRateThreshold": "Error Rate Threshold",
-    "minRequests": "Min Requests",
+    "errorRateThreshold": "Error Rate Threshold (%)",
+    "minRequests": "Minimum Requests",
     "validationFailed": "The following fields are out of valid range: {{fields}}",
-    "configSaved": "Circuit breaker config saved",
-    "saveFailed": "Failed to save"
+    "configSaved": "Circuit breaker configuration saved",
+    "saveFailed": "Save failed",
+    "loading": "Loading...",
+    "title": "Circuit Breaker Configuration",
+    "description": "Adjust circuit breaker parameters to control fault detection and recovery behavior",
+    "failureThresholdHint": "How many consecutive failures trigger the circuit breaker",
+    "timeoutSecondsHint": "How long to wait before attempting recovery (half-open state)",
+    "successThresholdHint": "How many successes in half-open state to close the circuit breaker",
+    "errorRateThresholdHint": "Open circuit breaker when error rate exceeds this value",
+    "minRequestsHint": "Minimum requests before calculating error rate",
+    "saveConfig": "Save Configuration",
+    "instructionsTitle": "Configuration Instructions",
+    "instructions": {
+      "failureThreshold": "Circuit breaker opens when consecutive failures reach this count",
+      "timeout": "After circuit breaker opens, wait this time before attempting half-open",
+      "successThreshold": "In half-open state, close circuit breaker when successes reach this count",
+      "errorRate": "Circuit breaker opens when error rate exceeds this value",
+      "minRequests": "Error rate is only calculated after request count reaches this value"
+    }
   },
   "universalProvider": {
     "title": "Universal Provider",

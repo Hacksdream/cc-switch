@@ -560,6 +560,59 @@ pub fn run() {
                 }
             }
 
+            // 5. Auto-extract common config snippets from live files (when snippet is missing)
+            for app_type in crate::app_config::AppType::all() {
+                // Skip if snippet already exists
+                if app_state
+                    .db
+                    .get_config_snippet(app_type.as_str())
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    continue;
+                }
+
+                // Try to read the live config file for this app type
+                let settings =
+                    match crate::services::provider::ProviderService::read_live_settings(
+                        app_type.clone(),
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => continue, // No live config file, skip silently
+                    };
+
+                // Extract common config (strip provider-specific fields)
+                match crate::services::provider::ProviderService::extract_common_config_snippet_from_settings(
+                    app_type.clone(),
+                    &settings,
+                ) {
+                    Ok(snippet) if !snippet.is_empty() && snippet != "{}" => {
+                        match app_state
+                            .db
+                            .set_config_snippet(app_type.as_str(), Some(snippet))
+                        {
+                            Ok(()) => log::info!(
+                                "✓ Auto-extracted common config snippet for {}",
+                                app_type.as_str()
+                            ),
+                            Err(e) => log::warn!(
+                                "✗ Failed to save config snippet for {}: {e}",
+                                app_type.as_str()
+                            ),
+                        }
+                    }
+                    Ok(_) => log::debug!(
+                        "○ Live config for {} has no extractable common fields",
+                        app_type.as_str()
+                    ),
+                    Err(e) => log::warn!(
+                        "✗ Failed to extract config snippet for {}: {e}",
+                        app_type.as_str()
+                    ),
+                }
+            }
+
             // 迁移旧的 app_config_dir 配置到 Store
             if let Err(e) = app_store::migrate_app_config_dir_from_settings(app.handle()) {
                 log::warn!("迁移 app_config_dir 失败: {e}");
@@ -752,16 +805,18 @@ pub fn run() {
                     log::warn!("Periodic backup failed on startup: {e}");
                 }
 
-                // Periodic backup timer: check every hour while the app is running
+                // Periodic maintenance timer: run once per day while the app is running
                 let db_for_timer = state.db.clone();
                 tauri::async_runtime::spawn(async move {
-                    let mut interval =
-                        tokio::time::interval(std::time::Duration::from_secs(3600));
+                    const PERIODIC_MAINTENANCE_INTERVAL_SECS: u64 = 24 * 60 * 60;
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+                        PERIODIC_MAINTENANCE_INTERVAL_SECS,
+                    ));
                     interval.tick().await; // skip immediate first tick (already checked above)
                     loop {
                         interval.tick().await;
                         if let Err(e) = db_for_timer.periodic_backup_if_needed() {
-                            log::warn!("Periodic backup timer failed: {e}");
+                            log::warn!("Periodic maintenance timer failed: {e}");
                         }
                     }
                 });
@@ -823,12 +878,18 @@ pub fn run() {
             commands::get_skills_migration_result,
             commands::get_app_config_path,
             commands::open_app_config_folder,
+            commands::get_claude_common_config_snippet,
+            commands::set_claude_common_config_snippet,
+            commands::get_common_config_snippet,
+            commands::set_common_config_snippet,
+            commands::extract_common_config_snippet,
             commands::read_live_provider_settings,
-            commands::patch_claude_live_settings,
             commands::get_settings,
             commands::save_settings,
             commands::get_rectifier_config,
             commands::set_rectifier_config,
+            commands::get_optimizer_config,
+            commands::set_optimizer_config,
             commands::get_log_config,
             commands::set_log_config,
             commands::restart_app,
@@ -981,6 +1042,7 @@ pub fn run() {
             // Session manager
             commands::list_sessions,
             commands::get_session_messages,
+            commands::delete_session,
             commands::launch_session_terminal,
             commands::get_tool_versions,
             // Provider terminal
@@ -997,6 +1059,8 @@ pub fn run() {
             // OpenClaw specific
             commands::import_openclaw_providers_from_live,
             commands::get_openclaw_live_provider_ids,
+            commands::get_openclaw_live_provider,
+            commands::scan_openclaw_config_health,
             commands::get_openclaw_default_model,
             commands::set_openclaw_default_model,
             commands::get_openclaw_model_catalog,
@@ -1039,9 +1103,18 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         // 处理退出请求（所有平台）
-        if let RunEvent::ExitRequested { api, .. } = &event {
-            log::info!("收到退出请求，开始清理...");
-            // 阻止立即退出，执行清理
+        if let RunEvent::ExitRequested { api, code, .. } = &event {
+            // code 为 None 表示运行时自动触发（如隐藏窗口的 WebView 被回收导致无存活窗口），
+            // 此时应仅阻止退出、保持托盘后台运行；
+            // code 为 Some(_) 表示用户主动调用 app.exit() 退出（如托盘菜单"退出"），
+            // 此时执行清理后退出。
+            if code.is_none() {
+                log::info!("运行时触发退出请求（无存活窗口），阻止退出以保持托盘后台运行");
+                api.prevent_exit();
+                return;
+            }
+
+            log::info!("收到用户主动退出请求 (code={code:?})，开始清理...");
             api.prevent_exit();
 
             let app_handle = app_handle.clone();

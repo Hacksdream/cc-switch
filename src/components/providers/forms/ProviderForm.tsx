@@ -47,9 +47,9 @@ import {
 import { mergeProviderMeta } from "@/utils/providerMetaUtils";
 import { getCodexCustomTemplate } from "@/config/codexTemplates";
 import CodexConfigEditor from "./CodexConfigEditor";
+import { CommonConfigEditor } from "./CommonConfigEditor";
 import GeminiConfigEditor from "./GeminiConfigEditor";
 import JsonEditor from "@/components/JsonEditor";
-import { ClaudeQuickToggles, jsonMergePatch } from "./ClaudeQuickToggles";
 import { Label } from "@/components/ui/label";
 import { ProviderPresetSelector } from "./ProviderPresetSelector";
 import { BasicFormFields } from "./BasicFormFields";
@@ -70,9 +70,12 @@ import {
   useCodexConfigState,
   useApiKeyLink,
   useTemplateValues,
+  useCommonConfigSnippet,
+  useCodexCommonConfig,
   useSpeedTestEndpoints,
   useCodexTomlValidation,
   useGeminiConfigState,
+  useGeminiCommonConfig,
   useOmoModelSource,
   useOpencodeFormState,
   useOmoDraftState,
@@ -116,7 +119,6 @@ interface ProviderFormProps {
     iconColor?: string;
   };
   showButtons?: boolean;
-  isCurrent?: boolean;
 }
 
 export function ProviderForm({
@@ -129,7 +131,6 @@ export function ProviderForm({
   onManageUniversalProviders,
   initialData,
   showButtons = true,
-  isCurrent = false,
 }: ProviderFormProps) {
   const { t } = useTranslation();
   const isEditMode = Boolean(initialData);
@@ -237,53 +238,23 @@ export function ProviderForm({
     mode: "onSubmit",
   });
 
-  const [localApiFormat, setLocalApiFormat] = useState<ClaudeApiFormat>(() => {
-    if (appId !== "claude") return "anthropic";
-    return initialData?.meta?.apiFormat ?? "anthropic";
-  });
-
-  const handleApiFormatChange = useCallback((format: ClaudeApiFormat) => {
-    setLocalApiFormat(format);
-  }, []);
+  const handleSettingsConfigChange = useCallback(
+    (config: string) => {
+      form.setValue("settingsConfig", config);
+    },
+    [form],
+  );
 
   const [localApiKeyField, setLocalApiKeyField] = useState<ClaudeApiKeyField>(
     () => {
       if (appId !== "claude") return "ANTHROPIC_AUTH_TOKEN";
       if (initialData?.meta?.apiKeyField) return initialData.meta.apiKeyField;
-      try {
-        const config = initialData?.settingsConfig;
-        if (
-          config?.env &&
-          (config.env as Record<string, unknown>).ANTHROPIC_API_KEY !==
-            undefined
-        )
-          return "ANTHROPIC_API_KEY";
-      } catch {}
+      // Infer from existing config env
+      const env = (initialData?.settingsConfig as Record<string, unknown>)
+        ?.env as Record<string, unknown> | undefined;
+      if (env?.ANTHROPIC_API_KEY !== undefined) return "ANTHROPIC_API_KEY";
       return "ANTHROPIC_AUTH_TOKEN";
     },
-  );
-
-  const handleApiKeyFieldChange = useCallback(
-    (field: ClaudeApiKeyField) => {
-      setLocalApiKeyField(field);
-      try {
-        const config = JSON.parse(form.getValues("settingsConfig") || "{}") as {
-          env?: Record<string, unknown>;
-        };
-        const env = (config.env ?? {}) as Record<string, unknown>;
-        const oldField =
-          field === "ANTHROPIC_API_KEY"
-            ? "ANTHROPIC_AUTH_TOKEN"
-            : "ANTHROPIC_API_KEY";
-        if (oldField in env) {
-          env[field] = env[oldField];
-          delete env[oldField];
-          config.env = env;
-          form.setValue("settingsConfig", JSON.stringify(config, null, 2));
-        }
-      } catch {}
-    },
-    [form],
   );
 
   const {
@@ -292,7 +263,7 @@ export function ProviderForm({
     showApiKey: shouldShowApiKey,
   } = useApiKeyState({
     initialConfig: form.getValues("settingsConfig"),
-    onConfigChange: (config) => form.setValue("settingsConfig", config),
+    onConfigChange: handleSettingsConfigChange,
     selectedPresetId,
     category,
     appType: appId,
@@ -304,7 +275,7 @@ export function ProviderForm({
     category,
     settingsConfig: form.getValues("settingsConfig"),
     codexConfig: "",
-    onSettingsConfigChange: (config) => form.setValue("settingsConfig", config),
+    onSettingsConfigChange: handleSettingsConfigChange,
     onCodexConfigChange: () => {},
   });
 
@@ -317,8 +288,41 @@ export function ProviderForm({
     handleModelChange,
   } = useModelState({
     settingsConfig: form.getValues("settingsConfig"),
-    onConfigChange: (config) => form.setValue("settingsConfig", config),
+    onConfigChange: handleSettingsConfigChange,
   });
+
+  const [localApiFormat, setLocalApiFormat] = useState<ClaudeApiFormat>(() => {
+    if (appId !== "claude") return "anthropic";
+    return initialData?.meta?.apiFormat ?? "anthropic";
+  });
+
+  const handleApiFormatChange = useCallback((format: ClaudeApiFormat) => {
+    setLocalApiFormat(format);
+  }, []);
+
+  const handleApiKeyFieldChange = useCallback(
+    (field: ClaudeApiKeyField) => {
+      const prev = localApiKeyField;
+      setLocalApiKeyField(field);
+
+      // Swap the env key name in settingsConfig
+      try {
+        const raw = form.getValues("settingsConfig");
+        const config = JSON.parse(raw || "{}");
+        if (config?.env && prev in config.env) {
+          const value = config.env[prev];
+          delete config.env[prev];
+          config.env[field] = value;
+          const updated = JSON.stringify(config, null, 2);
+          form.setValue("settingsConfig", updated);
+          handleSettingsConfigChange(updated);
+        }
+      } catch {
+        // ignore parse errors during editing
+      }
+    },
+    [localApiKeyField, form, handleSettingsConfigChange],
+  );
 
   const {
     codexAuth,
@@ -414,7 +418,43 @@ export function ProviderForm({
     selectedPresetId: appId === "claude" ? selectedPresetId : null,
     presetEntries: appId === "claude" ? presetEntries : [],
     settingsConfig: form.getValues("settingsConfig"),
-    onConfigChange: (config) => form.setValue("settingsConfig", config),
+    onConfigChange: handleSettingsConfigChange,
+  });
+
+  const {
+    useCommonConfig,
+    commonConfigSnippet,
+    commonConfigError,
+    handleCommonConfigToggle,
+    handleCommonConfigSnippetChange,
+    isExtracting: isClaudeExtracting,
+    handleExtract: handleClaudeExtract,
+  } = useCommonConfigSnippet({
+    settingsConfig: form.getValues("settingsConfig"),
+    onConfigChange: handleSettingsConfigChange,
+    initialData: appId === "claude" ? initialData : undefined,
+    initialEnabled:
+      appId === "claude" ? initialData?.meta?.commonConfigEnabled : undefined,
+    selectedPresetId: selectedPresetId ?? undefined,
+    enabled: appId === "claude",
+  });
+
+  const {
+    useCommonConfig: useCodexCommonConfigFlag,
+    commonConfigSnippet: codexCommonConfigSnippet,
+    commonConfigError: codexCommonConfigError,
+    handleCommonConfigToggle: handleCodexCommonConfigToggle,
+    handleCommonConfigSnippetChange: handleCodexCommonConfigSnippetChange,
+    isExtracting: isCodexExtracting,
+    handleExtract: handleCodexExtract,
+    clearCommonConfigError: clearCodexCommonConfigError,
+  } = useCodexCommonConfig({
+    codexConfig,
+    onConfigChange: handleCodexConfigChange,
+    initialData: appId === "codex" ? initialData : undefined,
+    initialEnabled:
+      appId === "codex" ? initialData?.meta?.commonConfigEnabled : undefined,
+    selectedPresetId: selectedPresetId ?? undefined,
   });
 
   const {
@@ -432,6 +472,7 @@ export function ProviderForm({
     handleGeminiConfigChange,
     resetGeminiConfig,
     envStringToObj,
+    envObjToString,
   } = useGeminiConfigState({
     initialData: appId === "gemini" ? initialData : undefined,
   });
@@ -482,6 +523,26 @@ export function ProviderForm({
     [originalHandleGeminiModelChange, updateGeminiEnvField],
   );
 
+  const {
+    useCommonConfig: useGeminiCommonConfigFlag,
+    commonConfigSnippet: geminiCommonConfigSnippet,
+    commonConfigError: geminiCommonConfigError,
+    handleCommonConfigToggle: handleGeminiCommonConfigToggle,
+    handleCommonConfigSnippetChange: handleGeminiCommonConfigSnippetChange,
+    isExtracting: isGeminiExtracting,
+    handleExtract: handleGeminiExtract,
+    clearCommonConfigError: clearGeminiCommonConfigError,
+  } = useGeminiCommonConfig({
+    envValue: geminiEnv,
+    onEnvChange: handleGeminiEnvChange,
+    envStringToObj,
+    envObjToString,
+    initialData: appId === "gemini" ? initialData : undefined,
+    initialEnabled:
+      appId === "gemini" ? initialData?.meta?.commonConfigEnabled : undefined,
+    selectedPresetId: selectedPresetId ?? undefined,
+  });
+
   // ── Extracted hooks: OpenCode / OMO / OpenClaw ─────────────────────
 
   const {
@@ -519,6 +580,8 @@ export function ProviderForm({
     onSettingsConfigChange: (config) => form.setValue("settingsConfig", config),
     getSettingsConfig: () => form.getValues("settingsConfig"),
   });
+
+  const [isCommonConfigModalOpen, setIsCommonConfigModalOpen] = useState(false);
 
   const handleSubmit = (values: ProviderFormData) => {
     if (appId === "claude" && templateValueEntries.length > 0) {
@@ -799,6 +862,14 @@ export function ProviderForm({
       payload.meta ?? (initialData?.meta ? { ...initialData.meta } : undefined);
     payload.meta = {
       ...(baseMeta ?? {}),
+      commonConfigEnabled:
+        appId === "claude"
+          ? useCommonConfig
+          : appId === "codex"
+            ? useCodexCommonConfigFlag
+            : appId === "gemini"
+              ? useGeminiCommonConfigFlag
+              : undefined,
       endpointAutoSelect,
       testConfig: testConfig.enabled ? testConfig : undefined,
       proxyConfig: proxyConfig.enabled ? proxyConfig : undefined,
@@ -814,7 +885,9 @@ export function ProviderForm({
           ? localApiFormat
           : undefined,
       apiKeyField:
-        appId === "claude" && category !== "official"
+        appId === "claude" &&
+        category !== "official" &&
+        localApiKeyField !== "ANTHROPIC_AUTH_TOKEN"
           ? localApiKeyField
           : undefined,
     };
@@ -962,7 +1035,7 @@ export function ProviderForm({
       resetCodexConfig(auth, config);
 
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify({ auth, config }, null, 2),
         icon: preset.icon ?? "",
@@ -979,7 +1052,7 @@ export function ProviderForm({
       resetGeminiConfig(env, config);
 
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(preset.settingsConfig, null, 2),
         icon: preset.icon ?? "",
@@ -1007,7 +1080,7 @@ export function ProviderForm({
       opencodeForm.resetOpencodeState(config);
 
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(config, null, 2),
         icon: preset.icon ?? "",
@@ -1034,7 +1107,7 @@ export function ProviderForm({
 
       // Update form fields
       form.reset({
-        name: preset.name,
+        name: preset.nameKey ? t(preset.nameKey) : preset.name,
         websiteUrl: preset.websiteUrl ?? "",
         settingsConfig: JSON.stringify(config, null, 2),
         icon: preset.icon ?? "",
@@ -1055,14 +1128,10 @@ export function ProviderForm({
       setLocalApiFormat("anthropic");
     }
 
-    if (preset.apiKeyField) {
-      setLocalApiKeyField(preset.apiKeyField);
-    } else {
-      setLocalApiKeyField("ANTHROPIC_AUTH_TOKEN");
-    }
+    setLocalApiKeyField(preset.apiKeyField ?? "ANTHROPIC_AUTH_TOKEN");
 
     form.reset({
-      name: preset.name,
+      name: preset.nameKey ? t(preset.nameKey) : preset.name,
       websiteUrl: preset.websiteUrl ?? "",
       settingsConfig: JSON.stringify(config, null, 2),
       icon: preset.icon ?? "",
@@ -1383,6 +1452,8 @@ export function ProviderForm({
             onApiChange={openclawForm.handleOpenclawApiChange}
             models={openclawForm.openclawModels}
             onModelsChange={openclawForm.handleOpenclawModelsChange}
+            userAgent={openclawForm.openclawUserAgent}
+            onUserAgentChange={openclawForm.handleOpenclawUserAgentChange}
           />
         )}
 
@@ -1394,8 +1465,16 @@ export function ProviderForm({
               configValue={codexConfig}
               onAuthChange={setCodexAuth}
               onConfigChange={handleCodexConfigChange}
+              useCommonConfig={useCodexCommonConfigFlag}
+              onCommonConfigToggle={handleCodexCommonConfigToggle}
+              commonConfigSnippet={codexCommonConfigSnippet}
+              onCommonConfigSnippetChange={handleCodexCommonConfigSnippetChange}
+              onCommonConfigErrorClear={clearCodexCommonConfigError}
+              commonConfigError={codexCommonConfigError}
               authError={codexAuthError}
               configError={codexConfigError}
+              onExtract={handleCodexExtract}
+              isExtracting={isCodexExtracting}
             />
             {settingsConfigErrorField}
           </>
@@ -1406,8 +1485,18 @@ export function ProviderForm({
               configValue={geminiConfig}
               onEnvChange={handleGeminiEnvChange}
               onConfigChange={handleGeminiConfigChange}
+              useCommonConfig={useGeminiCommonConfigFlag}
+              onCommonConfigToggle={handleGeminiCommonConfigToggle}
+              commonConfigSnippet={geminiCommonConfigSnippet}
+              onCommonConfigSnippetChange={
+                handleGeminiCommonConfigSnippetChange
+              }
+              onCommonConfigErrorClear={clearGeminiCommonConfigError}
+              commonConfigError={geminiCommonConfigError}
               envError={envError}
               configError={geminiConfigError}
+              onExtract={handleGeminiExtract}
+              isExtracting={isGeminiExtracting}
             />
             {settingsConfigErrorField}
           </>
@@ -1477,48 +1566,20 @@ export function ProviderForm({
           </>
         ) : (
           <>
-            <div className="space-y-2">
-              <Label htmlFor="settingsConfig">
-                {t("claudeConfig.configLabel")}
-              </Label>
-              {isEditMode && isCurrent && (
-                <ClaudeQuickToggles
-                  onPatchApplied={(patch) => {
-                    try {
-                      const cfg = JSON.parse(
-                        form.getValues("settingsConfig") || "{}",
-                      );
-                      jsonMergePatch(cfg, patch);
-                      form.setValue(
-                        "settingsConfig",
-                        JSON.stringify(cfg, null, 2),
-                      );
-                    } catch {
-                      // invalid JSON in editor — skip mirror
-                    }
-                  }}
-                />
-              )}
-              <JsonEditor
-                value={form.watch("settingsConfig")}
-                onChange={(value) => form.setValue("settingsConfig", value)}
-                placeholder={`{
-  "env": {
-    "ANTHROPIC_AUTH_TOKEN": "your-api-key-here"
-  }
-}`}
-                rows={14}
-                showValidation={true}
-                language="json"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  isCurrent
-                    ? "claudeConfig.fullSettingsHint"
-                    : "claudeConfig.fragmentSettingsHint",
-                )}
-              </p>
-            </div>
+            <CommonConfigEditor
+              value={form.getValues("settingsConfig")}
+              onChange={(value) => form.setValue("settingsConfig", value)}
+              useCommonConfig={useCommonConfig}
+              onCommonConfigToggle={handleCommonConfigToggle}
+              commonConfigSnippet={commonConfigSnippet}
+              onCommonConfigSnippetChange={handleCommonConfigSnippetChange}
+              commonConfigError={commonConfigError}
+              onEditClick={() => setIsCommonConfigModalOpen(true)}
+              isModalOpen={isCommonConfigModalOpen}
+              onModalClose={() => setIsCommonConfigModalOpen(false)}
+              onExtract={handleClaudeExtract}
+              isExtracting={isClaudeExtracting}
+            />
             {settingsConfigErrorField}
           </>
         )}

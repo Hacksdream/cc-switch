@@ -25,3 +25,4 @@ flatpak-build/
 flatpak-repo/
 .ace-tool/
 .worktrees/
+.spec-workflow/
