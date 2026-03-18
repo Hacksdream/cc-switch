@@ -14,6 +14,10 @@ import { Plus, Trash2, ChevronRight } from "lucide-react";
 import { ApiKeySection } from "./shared";
 import { opencodeNpmPackages } from "@/config/opencodeProviderPresets";
 import { cn } from "@/lib/utils";
+import {
+  getModelExtraFields,
+  isKnownModelKey,
+} from "./helpers/opencodeFormUtils";
 import type { ProviderCategory, OpenCodeModel } from "@/types";
 
 /**
@@ -121,6 +125,10 @@ function ModelOptionKeyInput({
         if (trimmed && trimmed !== optionKey) {
           onChange(trimmed);
         }
+        // Reset to prop value: if parent accepted the rename, useEffect
+        // will update localValue when the new optionKey prop arrives;
+        // if parent rejected, this restores the correct display.
+        setLocalValue(optionKey.startsWith("option-") ? "" : optionKey);
       }}
       placeholder={placeholder}
       className="flex-1"
@@ -243,33 +251,32 @@ export function OpenCodeFormFields({
   // Reserved model keys that are NOT editable as extra properties
   const RESERVED_MODEL_KEYS = ["name", "limit", "options"];
 
-  // Helper: extract extra properties from model (everything except reserved keys)
-  const getModelExtras = (model: OpenCodeModel): Record<string, unknown> => {
-    return Object.fromEntries(
-      Object.entries(model).filter(([k]) => !RESERVED_MODEL_KEYS.includes(k)),
-    );
-  };
-
-  // Model extra properties handlers (root-level metadata like reasoning, attachment, etc.)
   const handleAddModelOption = (modelKey: string) => {
     const model = models[modelKey];
     const newOptionKey = `option-${Date.now()}`;
+    const currentOptions = model.options ?? {};
     onModelsChange({
       ...models,
       [modelKey]: {
         ...model,
-        [newOptionKey]: "",
+        options: {
+          ...currentOptions,
+          [newOptionKey]: "",
+        },
       },
     });
   };
 
   const handleRemoveModelOption = (modelKey: string, optionKey: string) => {
     const model = models[modelKey];
-    const updated = { ...model };
-    delete updated[optionKey];
+    const currentOptions = { ...(model.options ?? {}) };
+    delete currentOptions[optionKey];
     onModelsChange({
       ...models,
-      [modelKey]: updated,
+      [modelKey]: {
+        ...model,
+        options: currentOptions,
+      },
     });
   };
 
@@ -281,21 +288,18 @@ export function OpenCodeFormFields({
     if (!newKey.trim() || oldKey === newKey) return;
     if (RESERVED_MODEL_KEYS.includes(newKey)) return;
     const model = models[modelKey];
-    const extras = getModelExtras(model);
-    const newExtras: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(extras)) {
-      if (k === oldKey) newExtras[newKey] = v;
-      else newExtras[k] = v;
+    const currentOptions = model.options ?? {};
+    const newOptions: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(currentOptions)) {
+      if (k === oldKey) newOptions[newKey] = v;
+      else newOptions[k] = v;
     }
-    const updated: OpenCodeModel = {
-      name: model.name,
-      ...(model.limit ? { limit: model.limit } : {}),
-      ...(model.options ? { options: model.options } : {}),
-      ...newExtras,
-    };
     onModelsChange({
       ...models,
-      [modelKey]: updated,
+      [modelKey]: {
+        ...model,
+        options: newOptions,
+      },
     });
   };
 
@@ -315,8 +319,70 @@ export function OpenCodeFormFields({
       ...models,
       [modelKey]: {
         ...model,
-        [optionKey]: parsedValue,
+        options: {
+          ...(model.options ?? {}),
+          [optionKey]: parsedValue,
+        },
       },
+    });
+  };
+
+  // Model extra field handlers (top-level properties like variants, cost)
+  const handleAddModelExtraField = (modelKey: string) => {
+    const model = models[modelKey];
+    const newFieldKey = `option-${Date.now()}`;
+    onModelsChange({
+      ...models,
+      [modelKey]: { ...model, [newFieldKey]: "" },
+    });
+  };
+
+  const handleRemoveModelExtraField = (modelKey: string, fieldKey: string) => {
+    const model = models[modelKey];
+    const newModel = { ...model };
+    delete newModel[fieldKey];
+    onModelsChange({
+      ...models,
+      [modelKey]: newModel,
+    });
+  };
+
+  const handleModelExtraFieldKeyChange = (
+    modelKey: string,
+    oldKey: string,
+    newKey: string,
+  ) => {
+    if (!newKey.trim() || oldKey === newKey) return;
+    const model = models[modelKey];
+    // Reject reserved keys and duplicate extra field names
+    if (isKnownModelKey(newKey) || (newKey !== oldKey && newKey in model))
+      return;
+    const newModel: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(model)) {
+      if (k === oldKey) newModel[newKey] = v;
+      else newModel[k] = v;
+    }
+    onModelsChange({
+      ...models,
+      [modelKey]: newModel as OpenCodeModel,
+    });
+  };
+
+  const handleModelExtraFieldValueChange = (
+    modelKey: string,
+    fieldKey: string,
+    value: string,
+  ) => {
+    const model = models[modelKey];
+    let parsedValue: unknown;
+    try {
+      parsedValue = JSON.parse(value);
+    } catch {
+      parsedValue = value;
+    }
+    onModelsChange({
+      ...models,
+      [modelKey]: { ...model, [fieldKey]: parsedValue },
     });
   };
 
@@ -574,15 +640,96 @@ export function OpenCodeFormFields({
                   </Button>
                 </div>
 
+                {/* Expanded model details */}
                 {expandedModels.has(key) && (
-                  <div className="ml-9 pl-4 border-l-2 border-muted space-y-2">
-                    {Object.keys(getModelExtras(model)).length === 0 ? (
+                  <div className="ml-9 pl-4 border-l-2 border-muted space-y-3">
+                    {/* Model Properties (extra fields like variants, cost) */}
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {t("opencode.modelExtraFields", {
+                            defaultValue: "模型属性",
+                          })}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAddModelExtraField(key)}
+                          className="h-6 px-2 gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      {Object.keys(getModelExtraFields(model)).length === 0 ? (
                         <p className="text-xs text-muted-foreground py-1">
-                          {t("opencode.noModelOptions", {
-                            defaultValue: "模型选项，点击 + 添加",
+                          {t("opencode.noModelExtraFields", {
+                            defaultValue:
+                              "模型属性 (variants, cost 等)，点击 + 添加",
                           })}
                         </p>
+                      ) : (
+                        Object.entries(getModelExtraFields(model)).map(
+                          ([fKey, fValue]) => (
+                            <div key={fKey} className="flex items-center gap-2">
+                              <ModelOptionKeyInput
+                                optionKey={fKey}
+                                onChange={(newKey) =>
+                                  handleModelExtraFieldKeyChange(
+                                    key,
+                                    fKey,
+                                    newKey,
+                                  )
+                                }
+                                placeholder={t(
+                                  "opencode.modelExtraFieldKeyPlaceholder",
+                                  {
+                                    defaultValue: "variants",
+                                  },
+                                )}
+                              />
+                              <Input
+                                value={fValue}
+                                onChange={(e) =>
+                                  handleModelExtraFieldValueChange(
+                                    key,
+                                    fKey,
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder={t(
+                                  "opencode.modelOptionValuePlaceholder",
+                                  {
+                                    defaultValue: '{"order": ["baseten"]}',
+                                  },
+                                )}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  handleRemoveModelExtraField(key, fKey)
+                                }
+                                className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ),
+                        )
+                      )}
+                    </div>
+
+                    {/* SDK Options (model.options) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {t("opencode.sdkOptions", {
+                            defaultValue: "SDK 选项",
+                          })}
+                        </span>
                         <Button
                           type="button"
                           variant="ghost"
@@ -593,9 +740,14 @@ export function OpenCodeFormFields({
                           <Plus className="h-3 w-3" />
                         </Button>
                       </div>
-                    ) : (
-                      <>
-                        {Object.entries(getModelExtras(model)).map(
+                      {Object.keys(model.options || {}).length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-1">
+                          {t("opencode.noModelOptions", {
+                            defaultValue: "模型选项，点击 + 添加",
+                          })}
+                        </p>
+                      ) : (
+                        Object.entries(model.options || {}).map(
                           ([optKey, optValue]) => (
                             <div
                               key={optKey}
@@ -651,20 +803,9 @@ export function OpenCodeFormFields({
                               </Button>
                             </div>
                           ),
-                        )}
-                        <div className="flex items-center justify-end">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleAddModelOption(key)}
-                            className="h-6 px-2 gap-1"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </>
-                    )}
+                        )
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
