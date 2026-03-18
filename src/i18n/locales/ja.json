@@ -505,7 +505,11 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "customTerminals": "カスタムターミナル",
+      "browseTerminal": "ターミナルを参照",
+      "browseTitle": "ターミナルアプリケーションを選択",
+      "noCustomTerminals": "カスタムターミナルが追加されていません"
     },
     "configDirectoryOverride": "設定ディレクトリの上書き（詳細）",
     "configDirectoryDescription": "WSL などで Claude Code や Codex を使う場合、ここで設定ディレクトリを WSL 側に合わせるとデータを揃えられます。",
@@ -831,7 +835,8 @@
     "saveFailed": "保存に失敗しました: {{error}}",
     "modelNameHint": "使用するモデルを指定します。config.toml に自動更新されます",
     "modelName": "モデル名",
-    "modelNamePlaceholder": "例: gpt-5-codex"
+    "modelNamePlaceholder": "例: gpt-5-codex",
+    "noCommonConfigToApply": "適用できる共通設定がありません"
   },
   "geminiConfig": {
     "envFile": "環境変数 (.env)",
@@ -1103,6 +1108,15 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
+      },
+      "filter": {
+        "searchPlaceholder": "MCP サーバーを検索...",
+        "allApps": "すべてのアプリ",
+        "allStatus": "すべての状態",
+        "enabled": "有効",
+        "disabled": "無効",
+        "noResults": "一致する MCP サーバーがありません",
+        "noResultsHint": "検索条件やフィルターを調整してください"
       }
     },
     "userLevelPath": "ユーザーレベルの MCP パス",
@@ -1169,7 +1183,10 @@
       "headers": "ヘッダー（任意）",
       "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
       "preview": "設定プレビュー",
-      "apply": "設定を反映"
+      "apply": "設定を反映",
+      "token": "Bearer トークン",
+      "tokenHint": "MCP サーバー用の任意の認証トークン",
+      "tokenPlaceholder": "Bearer トークンを入力..."
     },
     "id": "識別子（ユニーク）",
     "type": "タイプ",
@@ -1290,7 +1307,12 @@
     "confirm": {
       "deleteTitle": "削除の確認",
       "deleteMessage": "プロンプト「{{name}}」を削除してもよろしいですか？"
-    }
+    },
+    "filter": {
+      "search": "プロンプトを検索..."
+    },
+    "noFilterResults": "一致するプロンプトがありません",
+    "noFilterResultsDescription": "検索条件やフィルターを調整してください"
   },
   "workspace": {
     "title": "ワークスペースファイル",
@@ -1560,7 +1582,12 @@
       "installed": "インストール済み",
       "uninstalled": "未インストール",
       "repo": "リポジトリで絞り込み",
-      "allRepos": "すべてのリポジトリ"
+      "allRepos": "すべてのリポジトリ",
+      "search": "スキルを検索...",
+      "allApps": "すべてのアプリ",
+      "allStatus": "すべての状態",
+      "enabled": "有効",
+      "disabled": "無効"
     },
     "noResults": "一致するスキルが見つかりませんでした",
     "noInstalled": "インストールされたスキルがありません",
@@ -1589,7 +1616,9 @@
       "successSingle": "スキル {{name}} をインストールしました",
       "successMultiple": "{{count}} 件のスキルをインストールしました",
       "noSkillsFound": "ZIP ファイルにスキルが見つかりません（SKILL.md が必要です）"
-    }
+    },
+    "noFilterResults": "一致するスキルがありません",
+    "noFilterResultsDescription": "検索条件やフィルターを調整してください"
   },
   "deeplink": {
     "confirmImport": "プロバイダーのインポートを確認",

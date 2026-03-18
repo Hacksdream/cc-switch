@@ -505,7 +505,11 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "customTerminals": "Custom Terminals",
+      "browseTerminal": "Browse Terminal",
+      "browseTitle": "Select Terminal Application",
+      "noCustomTerminals": "No custom terminals added"
     },
     "configDirectoryOverride": "Configuration Directory Override (Advanced)",
     "configDirectoryDescription": "When using Claude Code or Codex in environments like WSL, you can manually specify the configuration directory to the one in WSL to keep provider data consistent with the main environment.",
@@ -831,7 +835,8 @@
     "saveFailed": "Save failed: {{error}}",
     "modelNameHint": "Specify the model to use, will be auto-updated in config.toml",
     "modelName": "Model Name",
-    "modelNamePlaceholder": "e.g., gpt-5-codex"
+    "modelNamePlaceholder": "e.g., gpt-5-codex",
+    "noCommonConfigToApply": "No common config available to apply"
   },
   "geminiConfig": {
     "envFile": "Environment Variables (.env)",
@@ -1103,6 +1108,15 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
+      },
+      "filter": {
+        "searchPlaceholder": "Search MCP servers...",
+        "allApps": "All Apps",
+        "allStatus": "All Status",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "noResults": "No matching MCP servers",
+        "noResultsHint": "Try adjusting your search or filter criteria"
       }
     },
     "userLevelPath": "User-level MCP path",
@@ -1169,7 +1183,10 @@
       "headers": "Headers (optional)",
       "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
       "preview": "Configuration Preview",
-      "apply": "Apply Configuration"
+      "apply": "Apply Configuration",
+      "token": "Bearer Token",
+      "tokenHint": "Optional authentication token for the MCP server",
+      "tokenPlaceholder": "Enter bearer token..."
     },
     "id": "Identifier (unique)",
     "type": "Type",
@@ -1290,7 +1307,12 @@
     "confirm": {
       "deleteTitle": "Confirm Delete",
       "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?"
-    }
+    },
+    "filter": {
+      "search": "Search prompts..."
+    },
+    "noFilterResults": "No matching prompts",
+    "noFilterResultsDescription": "Try adjusting your search or filter criteria"
   },
   "workspace": {
     "title": "Workspace Files",
@@ -1560,7 +1582,12 @@
       "installed": "Installed",
       "uninstalled": "Not installed",
       "repo": "Filter by repo",
-      "allRepos": "All repos"
+      "allRepos": "All repos",
+      "search": "Search skills...",
+      "allApps": "All Apps",
+      "allStatus": "All Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
     },
     "noResults": "No matching skills found",
     "noInstalled": "No skills installed",
@@ -1589,7 +1616,9 @@
       "successSingle": "Skill {{name}} installed",
       "successMultiple": "Successfully installed {{count}} skills",
       "noSkillsFound": "No skills found in ZIP file (requires SKILL.md file)"
-    }
+    },
+    "noFilterResults": "No matching skills",
+    "noFilterResultsDescription": "Try adjusting your search or filter criteria"
   },
   "deeplink": {
     "confirmImport": "Confirm Import Provider",

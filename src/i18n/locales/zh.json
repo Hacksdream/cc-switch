@@ -505,7 +505,11 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty"
         }
-      }
+      },
+      "customTerminals": "自定义终端",
+      "browseTerminal": "浏览终端",
+      "browseTitle": "选择终端应用程序",
+      "noCustomTerminals": "未添加自定义终端"
     },
     "configDirectoryOverride": "配置目录覆盖（高级）",
     "configDirectoryDescription": "在 WSL 等环境使用 Claude Code 或 Codex 的时候，可手动指定为 WSL 里的配置目录，供应商数据与主环境保持一致。",
@@ -831,7 +835,8 @@
     "saveFailed": "保存失败: {{error}}",
     "modelNameHint": "指定使用的模型，将自动更新到 config.toml 中",
     "modelName": "模型名称",
-    "modelNamePlaceholder": "例如: gpt-5-codex"
+    "modelNamePlaceholder": "例如: gpt-5-codex",
+    "noCommonConfigToApply": "没有可应用的公共配置"
   },
   "geminiConfig": {
     "envFile": "环境变量 (.env)",
@@ -1103,6 +1108,15 @@
         "gemini": "Gemini",
         "opencode": "OpenCode",
         "openclaw": "OpenClaw"
+      },
+      "filter": {
+        "searchPlaceholder": "搜索 MCP 服务器...",
+        "allApps": "所有应用",
+        "allStatus": "所有状态",
+        "enabled": "已启用",
+        "disabled": "已禁用",
+        "noResults": "没有匹配的 MCP 服务器",
+        "noResultsHint": "请尝试调整搜索或筛选条件"
       }
     },
     "userLevelPath": "用户级 MCP 配置路径",
@@ -1169,7 +1183,10 @@
       "headers": "请求头（可选）",
       "headersPlaceholder": "Authorization: Bearer your_token_here\nContent-Type: application/json",
       "preview": "配置预览",
-      "apply": "应用配置"
+      "apply": "应用配置",
+      "token": "Bearer 令牌",
+      "tokenHint": "MCP 服务器的可选认证令牌",
+      "tokenPlaceholder": "输入 Bearer 令牌..."
     },
     "id": "标识 (唯一)",
     "type": "类型",
@@ -1290,7 +1307,12 @@
     "confirm": {
       "deleteTitle": "确认删除",
       "deleteMessage": "确定要删除提示词 \"{{name}}\" 吗？"
-    }
+    },
+    "filter": {
+      "search": "搜索提示词..."
+    },
+    "noFilterResults": "没有匹配的提示词",
+    "noFilterResultsDescription": "请尝试调整搜索或筛选条件"
   },
   "workspace": {
     "title": "Workspace 文件管理",
@@ -1560,7 +1582,12 @@
       "installed": "已安装",
       "uninstalled": "未安装",
       "repo": "仓库筛选",
-      "allRepos": "全部仓库"
+      "allRepos": "全部仓库",
+      "search": "搜索技能...",
+      "allApps": "所有应用",
+      "allStatus": "所有状态",
+      "enabled": "已启用",
+      "disabled": "已禁用"
     },
     "noResults": "未找到匹配的技能",
     "noInstalled": "暂无已安装的技能",
@@ -1589,7 +1616,9 @@
       "successSingle": "技能 {{name}} 已安装",
       "successMultiple": "成功安装 {{count}} 个技能",
       "noSkillsFound": "ZIP 文件中未找到技能（需包含 SKILL.md 文件）"
-    }
+    },
+    "noFilterResults": "没有匹配的技能",
+    "noFilterResultsDescription": "请尝试调整搜索或筛选条件"
   },
   "deeplink": {
     "confirmImport": "确认导入供应商配置",

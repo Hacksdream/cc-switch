@@ -17,7 +17,6 @@ import {
   Download,
   FolderArchive,
   Search,
-  FileUp,
   FolderOpen,
   KeyRound,
   Shield,
