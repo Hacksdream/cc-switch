@@ -19,6 +19,10 @@ GEMINI.md
 vitest-report.json
 nul
 
+# Local agent/session artifacts
+.serena/
+thoughts/ledgers/CONTINUITY_ses_*.md
+
 # Flatpak build artifacts
 flatpak/cc-switch.deb
 flatpak-build/
