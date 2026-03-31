@@ -8,6 +8,32 @@ use jsonc_parser::ParseOptions;
 use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 
+const STANDARD_OMO_PLUGIN_PREFIXES: [&str; 2] = ["oh-my-openagent", "oh-my-opencode"];
+const SLIM_OMO_PLUGIN_PREFIXES: [&str; 1] = ["oh-my-opencode-slim"];
+
+fn matches_plugin_prefix(plugin_name: &str, prefix: &str) -> bool {
+    plugin_name == prefix
+        || plugin_name
+            .strip_prefix(prefix)
+            .map(|suffix| suffix.starts_with('@'))
+            .unwrap_or(false)
+}
+
+fn matches_any_plugin_prefix(plugin_name: &str, prefixes: &[&str]) -> bool {
+    prefixes
+        .iter()
+        .any(|prefix| matches_plugin_prefix(plugin_name, prefix))
+}
+
+fn canonicalize_plugin_name(plugin_name: &str) -> String {
+    if let Some(suffix) = plugin_name.strip_prefix("oh-my-opencode") {
+        if suffix.is_empty() || suffix.starts_with('@') {
+            return format!("oh-my-openagent{suffix}");
+        }
+    }
+    plugin_name.to_string()
+}
+
 pub fn get_opencode_dir() -> PathBuf {
     if let Some(override_dir) = get_opencode_override_dir() {
         return override_dir;
@@ -304,28 +330,13 @@ pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
     let raw = read_config_raw()?;
     let root = parse_cst(&raw)?;
     let root_obj = root.object_value_or_set();
-
+    let normalized_plugin_name = canonicalize_plugin_name(plugin_name);
     let plugins = root_obj.array_value_or_set("plugin");
 
     // Mutual exclusion: standard OMO and OMO Slim cannot coexist as plugins
-    if plugin_name.starts_with("oh-my-opencode") && !plugin_name.starts_with("oh-my-opencode-slim")
+    if matches_any_plugin_prefix(&normalized_plugin_name, &STANDARD_OMO_PLUGIN_PREFIXES)
+        || matches_any_plugin_prefix(&normalized_plugin_name, &SLIM_OMO_PLUGIN_PREFIXES)
     {
-        // Adding standard OMO -> remove all Slim variants
-        let to_remove: Vec<_> = plugins
-            .elements()
-            .into_iter()
-            .filter(|el| {
-                el.as_string_lit()
-                    .and_then(|s| s.decoded_value().ok())
-                    .map(|s| s.starts_with("oh-my-opencode-slim"))
-                    .unwrap_or(false)
-            })
-            .collect();
-        for node in to_remove {
-            node.remove();
-        }
-    } else if plugin_name.starts_with("oh-my-opencode-slim") {
-        // Adding Slim -> remove all standard OMO variants (but keep slim)
         let to_remove: Vec<_> = plugins
             .elements()
             .into_iter()
@@ -333,7 +344,8 @@ pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
                 el.as_string_lit()
                     .and_then(|s| s.decoded_value().ok())
                     .map(|s| {
-                        s.starts_with("oh-my-opencode") && !s.starts_with("oh-my-opencode-slim")
+                        matches_any_plugin_prefix(&s, &STANDARD_OMO_PLUGIN_PREFIXES)
+                            || matches_any_plugin_prefix(&s, &SLIM_OMO_PLUGIN_PREFIXES)
                     })
                     .unwrap_or(false)
             })
@@ -343,22 +355,21 @@ pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
         }
     }
 
-    // Check for duplicates
     let already_exists = plugins.elements().iter().any(|el| {
         el.as_string_lit()
             .and_then(|s| s.decoded_value().ok())
-            .map(|s| s == plugin_name)
+            .map(|s| s == normalized_plugin_name)
             .unwrap_or(false)
     });
 
     if !already_exists {
-        plugins.append(CstInputValue::String(plugin_name.to_string()));
+        plugins.append(CstInputValue::String(normalized_plugin_name));
     }
 
     write_config_raw(&root.to_string())
 }
 
-pub fn remove_plugin_by_prefix(prefix: &str) -> Result<(), AppError> {
+pub fn remove_plugins_by_prefixes(prefixes: &[&str]) -> Result<(), AppError> {
     let raw = read_config_raw()?;
     let root = parse_cst(&raw)?;
     let root_obj = root.object_value_or_set();
@@ -370,13 +381,7 @@ pub fn remove_plugin_by_prefix(prefix: &str) -> Result<(), AppError> {
             .filter(|el| {
                 el.as_string_lit()
                     .and_then(|s| s.decoded_value().ok())
-                    .map(|s| {
-                        if !s.starts_with(prefix) {
-                            return false;
-                        }
-                        let rest = &s[prefix.len()..];
-                        !rest.starts_with('-')
-                    })
+                    .map(|s| matches_any_plugin_prefix(&s, prefixes))
                     .unwrap_or(false)
             })
             .collect();
@@ -384,7 +389,6 @@ pub fn remove_plugin_by_prefix(prefix: &str) -> Result<(), AppError> {
             node.remove();
         }
 
-        // Remove empty plugin array
         if plugins.elements().is_empty() {
             if let Some(prop) = root_obj.get("plugin") {
                 prop.remove();
