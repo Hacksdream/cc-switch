@@ -232,6 +232,7 @@ impl OmoService {
 
     /// CST-based config write: reads existing file, updates only known keys,
     /// preserves all comments and unknown fields.
+    #[allow(dead_code)]
     fn write_config_with_cst(path: &std::path::Path, merged: &Value) -> Result<(), AppError> {
         use crate::opencode_config::deep_merge_cst_object;
         use jsonc_parser::cst::CstRootNode;

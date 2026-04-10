@@ -171,6 +171,7 @@ pub fn serde_value_to_cst(value: &Value) -> CstInputValue {
 ///
 /// Keys present in CST but absent from `source` are left untouched (preserves
 /// unknown fields like `google_auth`).
+#[allow(dead_code)]
 pub fn deep_merge_cst_object(
     cst_obj: &jsonc_parser::cst::CstObject,
     source: &serde_json::Map<String, Value>,
