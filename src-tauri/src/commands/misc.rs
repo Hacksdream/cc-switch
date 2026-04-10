@@ -1083,8 +1083,7 @@ fn launch_macos_warp(script_file: &std::path::Path) -> Result<(), String> {
 
     let home = std::env::var("HOME").map_err(|e| format!("获取 HOME 失败: {e}"))?;
     let config_dir = PathBuf::from(&home).join(".warp/launch_configurations");
-    std::fs::create_dir_all(&config_dir)
-        .map_err(|e| format!("创建 Warp 配置目录失败: {e}"))?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| format!("创建 Warp 配置目录失败: {e}"))?;
 
     let config_name = "cc-switch-temp";
     let config_path = config_dir.join(format!("{}.yaml", config_name));
@@ -1110,8 +1109,7 @@ windows:
         script = script_file.display()
     );
 
-    std::fs::write(&config_path, &yaml_content)
-        .map_err(|e| format!("写入 Warp 配置失败: {e}"))?;
+    std::fs::write(&config_path, &yaml_content).map_err(|e| format!("写入 Warp 配置失败: {e}"))?;
 
     let uri = format!("warp://launch/{}", config_name);
     let output = Command::new("open")

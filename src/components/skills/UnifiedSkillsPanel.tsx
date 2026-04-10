@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-<<<<<<< HEAD
 import {
   Sparkles,
   Trash2,

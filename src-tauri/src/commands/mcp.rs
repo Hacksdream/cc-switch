@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 
 use indexmap::IndexMap;
-use std::collections::HashMap;
 use serde::Serialize;
+use std::collections::HashMap;
 use tauri::State;
 
 use crate::app_config::{AppType, McpApps, McpServer};
@@ -221,10 +221,7 @@ pub async fn test_mcp_connectivity(
 
     match server_type {
         "stdio" => {
-            let command = server
-                .get("command")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let command = server.get("command").and_then(|v| v.as_str()).unwrap_or("");
             if command.is_empty() {
                 return Ok(McpConnectivityResult {
                     ok: false,
@@ -261,10 +258,7 @@ pub async fn test_mcp_connectivity(
             }
         }
         "http" | "sse" => {
-            let url = server
-                .get("url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let url = server.get("url").and_then(|v| v.as_str()).unwrap_or("");
             if url.is_empty() {
                 return Ok(McpConnectivityResult {
                     ok: false,
@@ -347,7 +341,8 @@ pub struct ParsedMcpEntry {
 
 #[tauri::command]
 pub async fn parse_mcp_json_file(path: String) -> Result<Vec<ParsedMcpEntry>, String> {
-    let content = std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let content =
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
     let json: serde_json::Value =
         serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))?;
 
@@ -362,7 +357,10 @@ pub async fn parse_mcp_json_file(path: String) -> Result<Vec<ParsedMcpEntry>, St
     }
 
     // 2. CC-Switch 内部格式: entries 含 server + apps 字段
-    if obj.values().any(|v| v.get("server").is_some() && v.get("apps").is_some()) {
+    if obj
+        .values()
+        .any(|v| v.get("server").is_some() && v.get("apps").is_some())
+    {
         return Ok(obj
             .iter()
             .filter_map(|(name, entry)| {
@@ -385,7 +383,10 @@ pub async fn parse_mcp_json_file(path: String) -> Result<Vec<ParsedMcpEntry>, St
     }
 
     // 5. 裸 map: 顶层对象的值含 command 或 url 字段
-    if obj.values().any(|v| v.get("command").is_some() || v.get("url").is_some()) {
+    if obj
+        .values()
+        .any(|v| v.get("command").is_some() || v.get("url").is_some())
+    {
         return Ok(convert_standard_format(obj));
     }
 
