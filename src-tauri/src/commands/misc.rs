@@ -949,6 +949,7 @@ exec bash --norc --noprofile
         "kitty" => launch_macos_open_app("kitty", &script_file, false),
         "ghostty" => launch_macos_open_app("Ghostty", &script_file, true),
         "wezterm" => launch_macos_open_app("WezTerm", &script_file, true),
+        "kaku" => launch_macos_open_app("Kaku", &script_file, true),
         path if path.to_lowercase().contains("warp") => {
             // Warp requires special handling via URI scheme + launch configuration
             launch_macos_warp(&script_file)

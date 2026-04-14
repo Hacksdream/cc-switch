@@ -91,7 +91,11 @@
     "switchToChinese": "切换到中文",
     "switchToEnglish": "切换到英文",
     "enterEditMode": "进入编辑模式",
-    "exitEditMode": "退出编辑模式"
+    "exitEditMode": "退出编辑模式",
+    "windowMinimize": "最小化窗口",
+    "windowMaximize": "最大化窗口",
+    "windowRestore": "还原窗口",
+    "windowClose": "关闭窗口"
   },
   "provider": {
     "tabProvider": "供应商",
@@ -104,6 +108,7 @@
     "currentlyUsing": "当前使用",
     "enable": "启用",
     "inUse": "使用中",
+    "blockedByProxy": "已拦截",
     "editProvider": "编辑供应商",
     "editProviderHint": "更新配置后将立即应用到当前供应商。",
     "deleteProvider": "删除供应商",
@@ -203,7 +208,10 @@
     "openclawDefaultModelSet": "已设为默认模型",
     "openclawDefaultModelSetFailed": "设置默认模型失败",
     "openclawNoModels": "该供应商没有配置模型",
-    "backfillWarning": "切换成功，但旧供应商配置回填失败，您手动修改的配置可能未保存"
+    "backfillWarning": "切换成功，但旧供应商配置回填失败，您手动修改的配置可能未保存",
+    "windowControlFailed": "窗口控制失败：{{error}}",
+    "officialBlockedByProxy": "代理接管模式下不能切换到官方供应商，使用代理访问官方 API 可能导致账号被封禁",
+    "proxyOfficialWarning": "当前供应商 {{name}} 是官方供应商，建议切换到第三方供应商后再使用代理接管"
   },
   "confirm": {
     "deleteProvider": "删除供应商",
@@ -245,6 +253,7 @@
     "title": "设置",
     "general": "通用",
     "tabGeneral": "通用",
+    "tabAuth": "认证",
     "tabAdvanced": "高级",
     "tabProxy": "代理",
     "authCenter": {
@@ -495,6 +504,8 @@
     "autoLaunchFailed": "设置开机自启失败",
     "minimizeToTray": "关闭时最小化到托盘",
     "minimizeToTrayDescription": "勾选后点击关闭按钮会隐藏到系统托盘，取消则直接退出应用。",
+    "useAppWindowControls": "启用应用级窗口按钮",
+    "useAppWindowControlsDescription": "开启后使用应用自建的最小化、最大化/还原、关闭按钮；关闭后沿用系统窗口模式。",
     "enableClaudePluginIntegration": "应用到 Claude Code 插件",
     "enableClaudePluginIntegrationDescription": "开启后 Vscode Claude Code 插件的供应商将随本软件切换",
     "skipClaudeOnboarding": "跳过 Claude Code 初次安装确认",
@@ -537,7 +548,8 @@
           "alacritty": "Alacritty",
           "kitty": "Kitty",
           "ghostty": "Ghostty",
-          "wezterm": "WezTerm"
+          "wezterm": "WezTerm",
+          "kaku": "Kaku"
         },
         "windows": {
           "cmd": "命令提示符",
@@ -777,11 +789,14 @@
       "siliconflow": "硅基流动是 CC Switch 的官方合作伙伴",
       "ucloud": "优云智算为CC Switch 的用户提供了特殊优惠，通过此链接注册，可以获得五元平台体验金！",
       "micu": "Micu 是 CC Switch 的官方合作伙伴",
-      "x-code": "XCodeAPI 为CC Switch 的用户提供特别福利，使用此链接注册后首单加赠10%的额度(联系站长领取)",
-      "ctok": "官网加入CTok社群，订阅套餐。"
+      "ctok": "官网加入CTok社群，订阅套餐。",
+      "ddshub": "呆呆兽为CC Switch 的用户提供了特别福利，通过此链接注册后，首单充值可额外赠送 10% 额度（联系群主领取）！",
+      "lionccapi": "LionCCAPI 为 CC Switch 的用户提供了特别福利，注册后添加客服微信HSQBJ088888888，发暗号cc-switch备注即可送10美金额度！",
+      "shengsuanyun": "胜算云为 CC Switch 的用户提供了特别福利，使用此链接注册的新用户可获 10 元模力及首充 10% 赠送！"
     },
     "presets": {
-      "ucloud": "优云智算"
+      "ucloud": "优云智算",
+      "shengsuanyun": "胜算云"
     },
     "parameterConfig": "参数配置 - {{name}} *",
     "mainModel": "主模型 (可选)",
@@ -1099,6 +1114,8 @@
       "failed": "会话同步失败"
     },
     "totalRecords": "共 {{total}} 条记录",
+    "goToPage": "跳转",
+    "pageInputPlaceholder": "页码",
     "modelPricing": "模型定价",
     "loadPricingError": "加载定价数据失败",
     "modelPricingDesc": "配置各模型的 Token 成本",
@@ -2323,6 +2340,7 @@
     "enabledModelsCount": "可选已配置模型 {{count}} 个",
     "source": "来源:",
     "otherFieldsJson": "其他字段 (JSON)",
+    "slimOtherFieldsHint": "OMO Slim 的 council、fallback、multiplexer、disabled_mcps、todoContinuation 等顶层配置请写在这里。",
     "searchOrType": "搜索或输入自定义值...",
     "noMatches": "无匹配项",
     "jsonMustBeObject": "{{field}} 必须是 JSON 对象",
@@ -2399,7 +2417,8 @@
       "librarian": "图书管理员",
       "explorer": "探索者",
       "designer": "设计师",
-      "fixer": "修复者"
+      "fixer": "修复者",
+      "council": "议会"
     },
     "slimAgentTooltip": {
       "orchestrator": "编写执行代码，编排多代理工作流，召唤专家",
@@ -2407,7 +2426,8 @@
       "librarian": "文档查询、GitHub 代码搜索（只读）",
       "explorer": "正则搜索、AST 模式匹配、文件发现（只读）",
       "designer": "现代响应式设计、CSS/Tailwind 精通",
-      "fixer": "代码实现、重构、测试、验证"
+      "fixer": "代码实现、重构、测试、验证",
+      "council": "多模型共识代理，并行运行多个只读 councillor，再由 master 汇总最终答案。"
     }
   },
   "openclawConfig": {

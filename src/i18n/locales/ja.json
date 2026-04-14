@@ -91,7 +91,11 @@
     "switchToChinese": "中国語に切り替え",
     "switchToEnglish": "英語に切り替え",
     "enterEditMode": "編集モードに入る",
-    "exitEditMode": "編集モードを終了"
+    "exitEditMode": "編集モードを終了",
+    "windowMinimize": "ウィンドウを最小化",
+    "windowMaximize": "ウィンドウを最大化",
+    "windowRestore": "ウィンドウを元に戻す",
+    "windowClose": "ウィンドウを閉じる"
   },
   "provider": {
     "tabProvider": "プロバイダー",
@@ -104,6 +108,7 @@
     "currentlyUsing": "現在使用中",
     "enable": "有効化",
     "inUse": "使用中",
+    "blockedByProxy": "ブロック",
     "editProvider": "プロバイダーを編集",
     "editProviderHint": "保存すると現在のプロバイダーにすぐ反映されます。",
     "deleteProvider": "プロバイダーを削除",
@@ -203,7 +208,10 @@
     "openclawDefaultModelSet": "デフォルトモデルに設定しました",
     "openclawDefaultModelSetFailed": "デフォルトモデルの設定に失敗しました",
     "openclawNoModels": "モデルが設定されていません",
-    "backfillWarning": "切り替え成功しましたが、前のプロバイダーへの設定保存に失敗しました"
+    "backfillWarning": "切り替え成功しましたが、前のプロバイダーへの設定保存に失敗しました",
+    "windowControlFailed": "ウィンドウ操作に失敗しました: {{error}}",
+    "officialBlockedByProxy": "プロキシ接管モード中は公式プロバイダーに切り替えできません。プロキシ経由で公式 API にアクセスするとアカウントが停止される可能性があります。",
+    "proxyOfficialWarning": "現在のプロバイダー {{name}} は公式です。プロキシ接管を使用する前にサードパーティプロバイダーに切り替えてください。"
   },
   "confirm": {
     "deleteProvider": "プロバイダーを削除",
@@ -245,6 +253,7 @@
     "title": "設定",
     "general": "一般",
     "tabGeneral": "一般",
+    "tabAuth": "認証",
     "tabAdvanced": "詳細",
     "tabProxy": "プロキシ",
     "authCenter": {
@@ -495,6 +504,8 @@
     "autoLaunchFailed": "自動起動の設定に失敗しました",
     "minimizeToTray": "閉じるときトレイへ最小化",
     "minimizeToTrayDescription": "チェックすると閉じるボタンでトレイに隠し、オフならアプリを終了します。",
+    "useAppWindowControls": "アプリ内ウィンドウボタンを有効化",
+    "useAppWindowControlsDescription": "有効にすると、アプリヘッダーに最小化・最大化/復元・閉じるボタンを表示します。",
     "enableClaudePluginIntegration": "Claude Code 拡張に適用",
     "enableClaudePluginIntegrationDescription": "オンにすると VS Code の Claude Code 拡張のプロバイダーも同期します",
     "skipClaudeOnboarding": "Claude Code の初回確認をスキップ",
@@ -537,7 +548,8 @@
           "alacritty": "Alacritty",
           "kitty": "Kitty",
           "ghostty": "Ghostty",
-          "wezterm": "WezTerm"
+          "wezterm": "WezTerm",
+          "kaku": "Kaku"
         },
         "windows": {
           "cmd": "コマンドプロンプト",
@@ -777,8 +789,10 @@
       "siliconflow": "SiliconFlow は CC Switch の公式パートナーです",
       "ucloud": "Compshare は CC Switch ユーザー向けに特別ボーナスを提供しています。このリンクから登録すると、5元のプラットフォーム体験クレジットがもらえます！",
       "micu": "Micu は CC Switch の公式パートナーです",
-      "x-code": "XCodeAPI は CC Switch ユーザー向けに特別ボーナスを提供しています。このリンクから登録すると、初回注文で 10% の追加クレジットがもらえます（管理者に連絡して受け取り）",
-      "ctok": "公式サイトで CTok コミュニティに参加し、プランを購読してください。"
+      "ctok": "公式サイトで CTok コミュニティに参加し、プランを購読してください。",
+      "ddshub": "DDSHub は CC Switch ユーザー向けに特別ボーナスを提供しています。このリンクから登録すると、初回チャージで 10% の追加クレジットがもらえます（グループ管理者に連絡して受け取り）！",
+      "lionccapi": "LionCCAPIはCC Switchユーザーに特別特典を提供しています。登録後、WeChat HSQBJ088888888を追加し、「cc-switch」と伝えると$10分のクレジットがもらえます！",
+      "shengsuanyun": "胜算云はCC Switchユーザーに特別特典を提供しています。このリンクから登録すると、10元分の無料クレジットと初回チャージ10%ボーナスがもらえます！"
     },
     "presets": {
       "ucloud": "Compshare"
@@ -1099,6 +1113,8 @@
       "failed": "セッション同期に失敗しました"
     },
     "totalRecords": "全 {{total}} 件",
+    "goToPage": "移動",
+    "pageInputPlaceholder": "ページ",
     "modelPricing": "モデル料金",
     "loadPricingError": "料金データの読み込みに失敗しました",
     "modelPricingDesc": "各モデルのトークンコストを設定",
@@ -2323,6 +2339,7 @@
     "enabledModelsCount": "設定済みモデル {{count}} 件",
     "source": "出典:",
     "otherFieldsJson": "その他のフィールド (JSON)",
+    "slimOtherFieldsHint": "council、fallback、multiplexer、disabled_mcps、todoContinuation など、OMO Slim のトップレベル設定はここに記述します。",
     "searchOrType": "検索またはカスタム値を入力...",
     "noMatches": "一致する項目がありません",
     "jsonMustBeObject": "{{field}} は JSON オブジェクトである必要があります",
@@ -2399,7 +2416,8 @@
       "librarian": "ライブラリアン",
       "explorer": "エクスプローラー",
       "designer": "デザイナー",
-      "fixer": "フィクサー"
+      "fixer": "フィクサー",
+      "council": "カウンシル"
     },
     "slimAgentTooltip": {
       "orchestrator": "実行コードの作成、マルチエージェントワークフローの調整、エキスパートの召喚",
@@ -2407,7 +2425,8 @@
       "librarian": "ドキュメント検索、GitHubコード検索（読み取り専用）",
       "explorer": "正規表現検索、ASTパターンマッチング、ファイル検出（読み取り専用）",
       "designer": "モダンなレスポンシブデザイン、CSS/Tailwindの専門知識",
-      "fixer": "コード実装、リファクタリング、テスト、検証"
+      "fixer": "コード実装、リファクタリング、テスト、検証",
+      "council": "複数モデルの合議エージェント。複数の読み取り専用 councillor を並列実行し、master が最終回答を統合します。"
     }
   },
   "openclawConfig": {
