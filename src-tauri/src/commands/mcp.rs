@@ -1,8 +1,14 @@
 #![allow(non_snake_case)]
 
+use futures::StreamExt;
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
+use std::process::{ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 use tauri::State;
 
 use crate::app_config::{AppType, McpApps, McpServer};
@@ -220,115 +226,800 @@ pub async fn test_mcp_connectivity(
         .unwrap_or("stdio");
 
     match server_type {
-        "stdio" => {
-            let command = server.get("command").and_then(|v| v.as_str()).unwrap_or("");
-            if command.is_empty() {
-                return Ok(McpConnectivityResult {
-                    ok: false,
-                    message: "No command specified".to_string(),
-                });
-            }
-            // 检查命令是否存在
-            let which_cmd = if cfg!(target_os = "windows") {
-                "where"
-            } else {
-                "which"
-            };
-            match std::process::Command::new(which_cmd).arg(command).output() {
-                Ok(output) if output.status.success() => {
-                    let path = String::from_utf8_lossy(&output.stdout)
-                        .trim()
-                        .lines()
-                        .next()
-                        .unwrap_or("")
-                        .to_string();
-                    Ok(McpConnectivityResult {
-                        ok: true,
-                        message: format!("Command found: {}", path),
-                    })
-                }
-                Ok(_) => Ok(McpConnectivityResult {
-                    ok: false,
-                    message: format!("Command not found: {}", command),
-                }),
-                Err(e) => Ok(McpConnectivityResult {
-                    ok: false,
-                    message: format!("Failed to check command: {}", e),
-                }),
-            }
-        }
-        "http" | "sse" => {
-            let url = server.get("url").and_then(|v| v.as_str()).unwrap_or("");
-            if url.is_empty() {
-                return Ok(McpConnectivityResult {
-                    ok: false,
-                    message: "No URL specified".to_string(),
-                });
-            }
-            // 发送 HEAD 请求检测 URL 可达性
-            let client = reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(10))
-                .build()
-                .map_err(|e| e.to_string())?;
-
-            // 构建请求，附加 headers
-            let mut request = client.head(url);
-            if let Some(headers_obj) = server.get("headers").and_then(|v| v.as_object()) {
-                for (k, v) in headers_obj {
-                    if let Some(val) = v.as_str() {
-                        if let (Ok(name), Ok(value)) = (
-                            reqwest::header::HeaderName::from_bytes(k.as_bytes()),
-                            reqwest::header::HeaderValue::from_str(val),
-                        ) {
-                            request = request.header(name, value);
-                        }
-                    }
-                }
-            }
-
-            match request.send().await {
-                Ok(resp) => {
-                    let status = resp.status();
-                    if status.is_success() || status == 405 || status == 426 {
-                        // 405 Method Not Allowed (HEAD not supported) 和 426 Upgrade Required (SSE) 也算可达
-                        Ok(McpConnectivityResult {
-                            ok: true,
-                            message: format!("Server reachable (HTTP {})", status.as_u16()),
-                        })
-                    } else if status == 401 || status == 403 {
-                        Ok(McpConnectivityResult {
-                            ok: true,
-                            message: format!(
-                                "Server reachable but auth required (HTTP {})",
-                                status.as_u16()
-                            ),
-                        })
-                    } else {
-                        Ok(McpConnectivityResult {
-                            ok: false,
-                            message: format!("Server returned HTTP {}", status.as_u16()),
-                        })
-                    }
-                }
-                Err(e) => {
-                    let msg = if e.is_timeout() {
-                        "Connection timed out (10s)".to_string()
-                    } else if e.is_connect() {
-                        format!("Connection refused: {}", url)
-                    } else {
-                        format!("Request failed: {}", e)
-                    };
-                    Ok(McpConnectivityResult {
-                        ok: false,
-                        message: msg,
-                    })
-                }
-            }
-        }
+        "stdio" => test_stdio_mcp_connectivity(&server).await,
+        "http" | "sse" => test_remote_mcp_connectivity(&server, server_type).await,
         _ => Ok(McpConnectivityResult {
             ok: false,
             message: format!("Unknown server type: {}", server_type),
         }),
+    }
+}
+
+const MCP_TEST_TIMEOUT_SECS: u64 = 10;
+const MCP_STDIO_PROTOCOL_VERSION: &str = "2025-06-18";
+
+async fn test_stdio_mcp_connectivity(
+    server: &serde_json::Value,
+) -> Result<McpConnectivityResult, String> {
+    let command = server.get("command").and_then(|v| v.as_str()).unwrap_or("");
+    if command.is_empty() {
+        return Ok(McpConnectivityResult {
+            ok: false,
+            message: "No command specified".to_string(),
+        });
+    }
+
+    let command_path = match crate::claude_mcp::resolve_command_path(command) {
+        Some(path) => path,
+        None => {
+            return Ok(McpConnectivityResult {
+                ok: false,
+                message: format!("Command not found in app environment: {}", command),
+            });
+        }
+    };
+
+    let args = parse_string_array(server.get("args"));
+    let envs = parse_string_map(server.get("env"));
+    let cwd = parse_cwd(server.get("cwd"));
+
+    match run_stdio_initialize_probe(&command_path, &args, &envs, cwd.as_deref()).await {
+        Ok(server_info) => Ok(McpConnectivityResult {
+            ok: true,
+            message: format!(
+                "MCP server responded to initialize: {} ({})",
+                server_info.name, server_info.version
+            ),
+        }),
+        Err(err) => Ok(McpConnectivityResult {
+            ok: false,
+            message: format!(
+                "Failed to start MCP server: {} [{}{}]",
+                err,
+                command_path.display(),
+                format_command_args(&args)
+            ),
+        }),
+    }
+}
+
+async fn test_remote_mcp_connectivity(
+    server: &serde_json::Value,
+    server_type: &str,
+) -> Result<McpConnectivityResult, String> {
+    let url = server.get("url").and_then(|v| v.as_str()).unwrap_or("");
+    if url.is_empty() {
+        return Ok(McpConnectivityResult {
+            ok: false,
+            message: "No URL specified".to_string(),
+        });
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(MCP_TEST_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let extra_headers = parse_header_map(server.get("headers"));
+
+    match probe_streamable_http(&client, url, &extra_headers).await {
+        Ok(init) => {
+            match send_remote_initialized(&client, url, &extra_headers, init.session_id.as_deref())
+                .await
+            {
+                Ok(initialized_status) => {
+                    let transport = match init.response_mode {
+                        RemoteResponseMode::Json => "JSON",
+                        RemoteResponseMode::Sse => "SSE",
+                    };
+                    let session_hint = init
+                        .session_id
+                        .as_deref()
+                        .map(|id| format!(", session {}", id))
+                        .unwrap_or_default();
+
+                    Ok(McpConnectivityResult {
+                        ok: true,
+                        message: format!(
+                        "Remote MCP initialize + initialized succeeded via {}: {} ({}) [HTTP {}{}]",
+                        transport,
+                        init.server_info.name,
+                        init.server_info.version,
+                        initialized_status.as_u16(),
+                        session_hint
+                    ),
+                    })
+                }
+                Err(err) => Ok(McpConnectivityResult {
+                    ok: false,
+                    message: format!(
+                        "Remote MCP initialize succeeded but initialized failed: {}",
+                        err.message
+                    ),
+                }),
+            }
+        }
+        Err(http_err)
+            if server_type == "sse"
+                || matches!(
+                    http_err.status,
+                    Some(reqwest::StatusCode::BAD_REQUEST)
+                        | Some(reqwest::StatusCode::NOT_FOUND)
+                        | Some(reqwest::StatusCode::METHOD_NOT_ALLOWED)
+                ) =>
+        {
+            match probe_legacy_sse(&client, url, &extra_headers).await {
+                Ok(message) => Ok(McpConnectivityResult { ok: true, message }),
+                Err(sse_err) => Ok(McpConnectivityResult {
+                    ok: false,
+                    message: format!(
+                        "Remote MCP probe failed: {}{}",
+                        http_err.message,
+                        format_fallback_error(sse_err)
+                    ),
+                }),
+            }
+        }
+        Err(http_err) => Ok(McpConnectivityResult {
+            ok: false,
+            message: format!("Remote MCP probe failed: {}", http_err.message),
+        }),
+    }
+}
+
+#[derive(Debug)]
+struct McpServerInfo {
+    name: String,
+    version: String,
+}
+
+#[derive(Debug)]
+enum RemoteResponseMode {
+    Json,
+    Sse,
+}
+
+#[derive(Debug)]
+struct RemoteInitializeSuccess {
+    server_info: McpServerInfo,
+    session_id: Option<String>,
+    response_mode: RemoteResponseMode,
+}
+
+#[derive(Debug)]
+struct RemoteProbeError {
+    status: Option<reqwest::StatusCode>,
+    message: String,
+}
+
+async fn run_stdio_initialize_probe(
+    command_path: &Path,
+    args: &[String],
+    envs: &HashMap<String, String>,
+    cwd: Option<&Path>,
+) -> Result<McpServerInfo, String> {
+    let command_path = command_path.to_path_buf();
+    let args = args.to_vec();
+    let envs = envs.clone();
+    let cwd = cwd.map(Path::to_path_buf);
+
+    tokio::task::spawn_blocking(move || {
+        let mut command = Command::new(&command_path);
+        command
+            .args(&args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        if let Some(cwd) = cwd.as_deref() {
+            command.current_dir(cwd);
+        }
+
+        for (key, value) in &envs {
+            command.env(key, value);
+        }
+
+        let mut child = command
+            .spawn()
+            .map_err(|e| format!("spawn failed: {}", e))?;
+
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| "failed to open stdin pipe".to_string())?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| "failed to open stdout pipe".to_string())?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| "failed to open stderr pipe".to_string())?;
+
+        let stderr_output = Arc::new(Mutex::new(String::new()));
+        let stderr_handle = spawn_stderr_collector(stderr, Arc::clone(&stderr_output));
+
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(perform_initialize_handshake(stdin, stdout));
+        });
+
+        let handshake_result = rx
+            .recv_timeout(Duration::from_secs(MCP_TEST_TIMEOUT_SECS))
+            .unwrap_or_else(|_| {
+                Err(format!(
+                    "initialize timed out after {}s",
+                    MCP_TEST_TIMEOUT_SECS
+                ))
+            });
+
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = stderr_handle.join();
+
+        let stderr_output = stderr_output
+            .lock()
+            .map(|output| output.clone())
+            .unwrap_or_else(|_| "failed to capture stderr".to_string());
+
+        handshake_result.map_err(|err| enrich_stdio_error(err, stderr_output))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn perform_initialize_handshake(
+    mut stdin: ChildStdin,
+    stdout: ChildStdout,
+) -> Result<McpServerInfo, String> {
+    let request = build_initialize_request();
+    let payload = serde_json::to_string(&request).map_err(|e| e.to_string())?;
+    stdin
+        .write_all(payload.as_bytes())
+        .map_err(|e| format!("failed to write initialize request: {}", e))?;
+    stdin
+        .write_all(b"\n")
+        .map_err(|e| format!("failed to write newline: {}", e))?;
+    stdin
+        .flush()
+        .map_err(|e| format!("failed to flush initialize request: {}", e))?;
+
+    let mut reader = BufReader::new(stdout);
+    let mut line = String::new();
+    let server_info = read_initialize_response(&mut reader, &mut line)?;
+
+    let initialized = build_initialized_notification();
+    let payload = serde_json::to_string(&initialized).map_err(|e| e.to_string())?;
+    stdin
+        .write_all(payload.as_bytes())
+        .map_err(|e| format!("failed to write initialized notification: {}", e))?;
+    stdin
+        .write_all(b"\n")
+        .map_err(|e| format!("failed to write initialized newline: {}", e))?;
+    stdin
+        .flush()
+        .map_err(|e| format!("failed to flush initialized notification: {}", e))?;
+
+    Ok(server_info)
+}
+
+async fn probe_streamable_http(
+    client: &reqwest::Client,
+    url: &str,
+    extra_headers: &HashMap<String, String>,
+) -> Result<RemoteInitializeSuccess, RemoteProbeError> {
+    let mut request = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json, text/event-stream")
+        .header("MCP-Protocol-Version", MCP_STDIO_PROTOCOL_VERSION)
+        .json(&build_initialize_request());
+
+    request = apply_headers_to_request(request, extra_headers);
+
+    let response = request.send().await.map_err(map_remote_request_error)?;
+    let status = response.status();
+
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(RemoteProbeError {
+            status: Some(status),
+            message: format_http_error(status, &body),
+        });
+    }
+
+    let session_id = response
+        .headers()
+        .get("MCP-Session-Id")
+        .and_then(|v| v.to_str().ok())
+        .map(ToString::to_string);
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
+    if content_type.contains("text/event-stream") {
+        let mut stream = response.bytes_stream();
+        if let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    let body = extract_sse_json_payload(&text).ok_or_else(|| RemoteProbeError {
+                        status: Some(status),
+                        message: format!(
+                            "streamable HTTP initialize returned SSE without JSON payload: {}",
+                            text.lines()
+                                .find(|line| !line.trim().is_empty())
+                                .unwrap_or("<empty>")
+                        ),
+                    })?;
+
+                    let server_info =
+                        parse_initialize_response(&body).map_err(|err| RemoteProbeError {
+                            status: Some(status),
+                            message: err,
+                        })?;
+
+                    return Ok(RemoteInitializeSuccess {
+                        server_info,
+                        session_id,
+                        response_mode: RemoteResponseMode::Sse,
+                    });
+                }
+                Err(err) => {
+                    return Err(RemoteProbeError {
+                        status: Some(status),
+                        message: format!("failed to read initialize stream: {}", err),
+                    });
+                }
+            }
+        }
+
+        return Err(RemoteProbeError {
+            status: Some(status),
+            message: "streamable HTTP initialize returned empty SSE stream".to_string(),
+        });
+    }
+
+    let body = response.text().await.map_err(|e| RemoteProbeError {
+        status: Some(status),
+        message: format!("failed to read initialize response: {}", e),
+    })?;
+
+    let server_info = parse_initialize_response(&body).map_err(|err| RemoteProbeError {
+        status: Some(status),
+        message: err,
+    })?;
+
+    Ok(RemoteInitializeSuccess {
+        server_info,
+        session_id,
+        response_mode: RemoteResponseMode::Json,
+    })
+}
+
+async fn send_remote_initialized(
+    client: &reqwest::Client,
+    url: &str,
+    extra_headers: &HashMap<String, String>,
+    session_id: Option<&str>,
+) -> Result<reqwest::StatusCode, RemoteProbeError> {
+    let mut request = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json, text/event-stream")
+        .header("MCP-Protocol-Version", MCP_STDIO_PROTOCOL_VERSION)
+        .json(&build_initialized_notification());
+
+    if let Some(session_id) = session_id {
+        request = request.header("MCP-Session-Id", session_id);
+    }
+
+    request = apply_headers_to_request(request, extra_headers);
+
+    let response = request.send().await.map_err(map_remote_request_error)?;
+    let status = response.status();
+
+    if status.is_success() || status == reqwest::StatusCode::ACCEPTED {
+        Ok(status)
+    } else {
+        let body = response.text().await.unwrap_or_default();
+        Err(RemoteProbeError {
+            status: Some(status),
+            message: format_http_error(status, &body),
+        })
+    }
+}
+
+async fn probe_legacy_sse(
+    client: &reqwest::Client,
+    url: &str,
+    extra_headers: &HashMap<String, String>,
+) -> Result<String, RemoteProbeError> {
+    let mut request = client
+        .get(url)
+        .header("Accept", "text/event-stream")
+        .header("Cache-Control", "no-cache")
+        .header("MCP-Protocol-Version", MCP_STDIO_PROTOCOL_VERSION);
+
+    request = apply_headers_to_request(request, extra_headers);
+
+    let response = request.send().await.map_err(map_remote_request_error)?;
+    let status = response.status();
+
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(RemoteProbeError {
+            status: Some(status),
+            message: format_http_error(status, &body),
+        });
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
+    if !content_type.contains("text/event-stream") {
+        let body = response.text().await.unwrap_or_default();
+        return Err(RemoteProbeError {
+            status: Some(status),
+            message: format!("expected text/event-stream, got {}: {}", content_type, body),
+        });
+    }
+
+    let mut stream = response.bytes_stream();
+    if let Some(chunk) = stream.next().await {
+        match chunk {
+            Ok(bytes) => {
+                let text = String::from_utf8_lossy(&bytes);
+                let endpoint = extract_sse_endpoint(&text);
+                let first_event = summarize_sse_first_event(&text);
+
+                Ok(match endpoint {
+                    Some(endpoint) => format!(
+                        "Legacy SSE endpoint reachable: discovered endpoint {}",
+                        endpoint
+                    ),
+                    None => format!("Legacy SSE stream reachable: {}", first_event),
+                })
+            }
+            Err(err) => Err(RemoteProbeError {
+                status: Some(status),
+                message: format!("failed to read SSE stream: {}", err),
+            }),
+        }
+    } else {
+        Err(RemoteProbeError {
+            status: Some(status),
+            message: "SSE stream opened but returned no data".to_string(),
+        })
+    }
+}
+
+fn build_initialize_request() -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": MCP_STDIO_PROTOCOL_VERSION,
+            "capabilities": {},
+            "clientInfo": {
+                "name": "cc-switch",
+                "version": env!("CARGO_PKG_VERSION")
+            }
+        }
+    })
+}
+
+fn build_initialized_notification() -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+    })
+}
+
+fn read_initialize_response<R: BufRead>(
+    reader: &mut R,
+    line: &mut String,
+) -> Result<McpServerInfo, String> {
+    loop {
+        line.clear();
+        let bytes = reader
+            .read_line(line)
+            .map_err(|e| format!("failed to read initialize response: {}", e))?;
+
+        if bytes == 0 {
+            return Err("process exited before returning initialize response".to_string());
+        }
+
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let response: serde_json::Value = serde_json::from_str(trimmed)
+            .map_err(|e| format!("stdout is not valid JSON-RPC: {}", e))?;
+
+        if response.get("jsonrpc").and_then(|v| v.as_str()) != Some("2.0") {
+            return Err("initialize response missing jsonrpc=2.0".to_string());
+        }
+
+        if response.get("id") != Some(&serde_json::json!(1)) {
+            continue;
+        }
+
+        if let Some(err) = response.get("error") {
+            return Err(format!("server returned initialize error: {}", err));
+        }
+
+        let result = response
+            .get("result")
+            .ok_or_else(|| "initialize response missing result".to_string())?;
+        let server_info = result
+            .get("serverInfo")
+            .and_then(|v| v.as_object())
+            .ok_or_else(|| "initialize response missing serverInfo".to_string())?;
+
+        let name = server_info
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let version = server_info
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        return Ok(McpServerInfo { name, version });
+    }
+}
+
+fn parse_initialize_response(body: &str) -> Result<McpServerInfo, String> {
+    let response: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| format!("response is not valid JSON: {}", e))?;
+
+    if response.get("jsonrpc").and_then(|v| v.as_str()) != Some("2.0") {
+        return Err("initialize response missing jsonrpc=2.0".to_string());
+    }
+
+    if response.get("id") != Some(&serde_json::json!(1)) {
+        return Err("initialize response missing id=1".to_string());
+    }
+
+    if let Some(err) = response.get("error") {
+        return Err(format!("server returned initialize error: {}", err));
+    }
+
+    let result = response
+        .get("result")
+        .ok_or_else(|| "initialize response missing result".to_string())?;
+    let server_info = result
+        .get("serverInfo")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| "initialize response missing serverInfo".to_string())?;
+
+    let name = server_info
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let version = server_info
+        .get("version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    Ok(McpServerInfo { name, version })
+}
+
+fn apply_headers_to_request(
+    mut request: reqwest::RequestBuilder,
+    headers: &HashMap<String, String>,
+) -> reqwest::RequestBuilder {
+    for (key, value) in headers {
+        if let (Ok(name), Ok(value)) = (
+            reqwest::header::HeaderName::from_bytes(key.as_bytes()),
+            reqwest::header::HeaderValue::from_str(value),
+        ) {
+            request = request.header(name, value);
+        }
+    }
+
+    request
+}
+
+fn map_remote_request_error(err: reqwest::Error) -> RemoteProbeError {
+    let message = if err.is_timeout() {
+        format!("connection timed out ({}s)", MCP_TEST_TIMEOUT_SECS)
+    } else if err.is_connect() {
+        format!("connection refused: {}", err)
+    } else {
+        format!("request failed: {}", err)
+    };
+
+    RemoteProbeError {
+        status: err.status(),
+        message,
+    }
+}
+
+fn format_http_error(status: reqwest::StatusCode, body: &str) -> String {
+    let body = body.trim();
+    if body.is_empty() {
+        format!("server returned HTTP {}", status.as_u16())
+    } else {
+        format!("server returned HTTP {}: {}", status.as_u16(), body)
+    }
+}
+
+fn format_fallback_error(err: RemoteProbeError) -> String {
+    format!(" | fallback SSE probe failed: {}", err.message)
+}
+
+fn extract_sse_json_payload(text: &str) -> Option<String> {
+    let mut data_lines = Vec::new();
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("data:") {
+            let data = rest.trim();
+            if !data.is_empty() {
+                data_lines.push(data.to_string());
+            }
+        }
+    }
+
+    if data_lines.is_empty() {
+        None
+    } else {
+        Some(data_lines.join("\n"))
+    }
+}
+
+fn summarize_sse_first_event(text: &str) -> String {
+    let mut event_name: Option<String> = None;
+    let mut first_data: Option<String> = None;
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("event:") {
+            event_name = Some(rest.trim().to_string());
+            continue;
+        }
+        if let Some(rest) = trimmed.strip_prefix("data:") {
+            let data = rest.trim();
+            if !data.is_empty() {
+                first_data = Some(data.to_string());
+                break;
+            }
+        }
+    }
+
+    match (event_name, first_data) {
+        (Some(event), Some(data)) => format!("event={} data={}", event, data),
+        (Some(event), None) => format!("event={}", event),
+        (None, Some(data)) => format!("data={}", data),
+        (None, None) => text
+            .lines()
+            .find(|line| !line.trim().is_empty())
+            .unwrap_or("<empty>")
+            .to_string(),
+    }
+}
+
+fn extract_sse_endpoint(text: &str) -> Option<String> {
+    let mut current_event: Option<&str> = None;
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("event:") {
+            current_event = Some(rest.trim());
+            continue;
+        }
+
+        if let Some(rest) = trimmed.strip_prefix("data:") {
+            if current_event == Some("endpoint") {
+                let data = rest.trim();
+                if !data.is_empty() {
+                    return Some(data.to_string());
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn spawn_stderr_collector(
+    stderr: ChildStderr,
+    stderr_output: Arc<Mutex<String>>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let mut reader = BufReader::new(stderr);
+        let mut buffer = String::new();
+        let mut lines = Vec::new();
+
+        loop {
+            buffer.clear();
+            match reader.read_line(&mut buffer) {
+                Ok(0) => break,
+                Ok(_) => {
+                    let line = buffer.trim();
+                    if !line.is_empty() {
+                        lines.push(line.to_string());
+                    }
+                    if lines.len() >= 5 {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    lines.push(format!("failed to read stderr: {}", err));
+                    break;
+                }
+            }
+        }
+
+        if let Ok(mut output) = stderr_output.lock() {
+            *output = lines.join(" | ");
+        }
+    })
+}
+
+fn parse_string_array(value: Option<&serde_json::Value>) -> Vec<String> {
+    value
+        .and_then(|v| v.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(ToString::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_string_map(value: Option<&serde_json::Value>) -> HashMap<String, String> {
+    value
+        .and_then(|v| v.as_object())
+        .map(|map| {
+            map.iter()
+                .filter_map(|(key, value)| value.as_str().map(|v| (key.clone(), v.to_string())))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_header_map(value: Option<&serde_json::Value>) -> HashMap<String, String> {
+    parse_string_map(value)
+}
+
+fn parse_cwd(value: Option<&serde_json::Value>) -> Option<PathBuf> {
+    value
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|cwd| !cwd.is_empty())
+        .map(PathBuf::from)
+}
+
+fn format_command_args(args: &[String]) -> String {
+    if args.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", args.join(" "))
+    }
+}
+
+fn enrich_stdio_error(error: String, stderr_output: String) -> String {
+    if stderr_output.trim().is_empty() {
+        error
+    } else {
+        format!("{} | stderr: {}", error, stderr_output)
     }
 }
 
