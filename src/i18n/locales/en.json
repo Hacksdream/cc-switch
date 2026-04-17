@@ -36,8 +36,12 @@
     "all": "All",
     "search": "Search",
     "reset": "Reset",
-    "actions": "Actions",
-    "deleting": "Deleting...",
+    "select": "Select",
+    "selectedCount": "{{count}} selected",
+    "batchModeHint": "Select items to delete",
+    "selectAllFiltered": "Select current",
+    "clearFilteredSelection": "Clear current",
+    "clearSelection": "Clear selection",
     "auto": "Auto",
     "enabled": "Enabled",
     "notSet": "Not Set"
@@ -1308,6 +1312,17 @@
         "disabled": "Disabled",
         "noResults": "No matching MCP servers",
         "noResultsHint": "Try adjusting your search or filter criteria"
+      },
+      "bulkDelete": {
+        "button": "Bulk Delete ({{count}})",
+        "title": "Bulk Delete MCP Servers",
+        "message": "Are you sure you want to delete {{count}} selected MCP servers? This action cannot be undone.",
+        "confirm": "Delete {{count}} servers",
+        "deleting": "Deleting...",
+        "progress": "Deleting {{count}} MCP servers...",
+        "success": "Deleted {{count}} MCP servers",
+        "failed": "Failed to bulk delete MCP servers",
+        "partialFailed": "{{failed}} MCP servers could not be deleted"
       }
     },
     "userLevelPath": "User-level MCP path",
@@ -1497,7 +1512,18 @@
     "importFailed": "Failed to import",
     "confirm": {
       "deleteTitle": "Confirm Delete",
-      "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?"
+      "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?",
+      "batchDeleteTitle": "Bulk Delete Prompts",
+      "batchDeleteMessage": "Are you sure you want to delete {{count}} prompts in the current filtered results? This action cannot be undone."
+    },
+    "bulkDelete": {
+      "button": "Bulk Delete ({{count}})",
+      "confirm": "Delete {{count}} prompts",
+      "deleting": "Deleting...",
+      "progress": "Deleting {{count}} prompts...",
+      "success": "Deleted {{count}} prompts",
+      "failed": "Failed to bulk delete prompts",
+      "partialFailed": "{{failed}} prompts could not be deleted"
     },
     "filter": {
       "search": "Search prompts..."
@@ -1818,6 +1844,17 @@
     "foundIn": "Found in",
     "local": "Local",
     "uninstallConfirm": "Are you sure you want to uninstall \"{{name}}\"? This will remove the skill from all apps and create a local backup first.",
+    "bulkDelete": {
+      "button": "Bulk Delete ({{count}})",
+      "title": "Bulk Delete Skills",
+      "message": "Are you sure you want to uninstall {{count}} selected skills? This will remove them from all apps and create local backups first.",
+      "confirm": "Delete {{count}} skills",
+      "deleting": "Deleting...",
+      "progress": "Deleting {{count}} skills...",
+      "success": "Deleted {{count}} skills",
+      "failed": "Failed to bulk delete skills",
+      "partialFailed": "{{failed}} skills could not be deleted"
+    },
     "uninstallInMainPanel": "Please uninstall skills from the main panel",
     "notFound": "Skill not found",
     "backup": {
