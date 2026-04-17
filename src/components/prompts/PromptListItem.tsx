@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Edit3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Prompt } from "@/lib/api";
 import PromptToggle from "./PromptToggle";
 
@@ -11,6 +12,9 @@ interface PromptListItemProps {
   onToggle: (id: string, enabled: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  selectionMode?: boolean;
+  isChecked?: boolean;
+  onToggleChecked?: (checked: boolean) => void;
 }
 
 const PromptListItem: React.FC<PromptListItemProps> = ({
@@ -19,6 +23,9 @@ const PromptListItem: React.FC<PromptListItemProps> = ({
   onToggle,
   onEdit,
   onDelete,
+  selectionMode = false,
+  isChecked = false,
+  onToggleChecked,
 }) => {
   const { t } = useTranslation();
 
@@ -27,7 +34,16 @@ const PromptListItem: React.FC<PromptListItemProps> = ({
   return (
     <div className="group relative h-16 rounded-xl border border-border-default bg-muted/50 p-4 transition-all duration-300 hover:bg-muted hover:border-border-default/80 hover:shadow-sm">
       <div className="flex items-center gap-4 h-full">
-        {/* Toggle 开关 */}
+        {selectionMode && (
+          <div className="flex-shrink-0">
+            <Checkbox
+              checked={isChecked}
+              aria-label={t("common.select")}
+              onCheckedChange={(checked) => onToggleChecked?.(Boolean(checked))}
+            />
+          </div>
+        )}
+
         <div className="flex-shrink-0">
           <PromptToggle
             enabled={enabled}

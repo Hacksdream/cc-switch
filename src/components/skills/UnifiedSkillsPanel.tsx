@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -93,6 +94,10 @@ const UnifiedSkillsPanel = React.forwardRef<
     "all" | "enabled" | "disabled"
   >("all");
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   const { data: skills, isLoading } = useInstalledSkills();
   const {
@@ -163,6 +168,17 @@ const UnifiedSkillsPanel = React.forwardRef<
     });
   }, [skills, searchQuery, filterApp, filterStatus]);
 
+  const selectedSkills = useMemo(
+    () => filteredSkills.filter((skill) => selectedSkillIds.has(skill.id)),
+    [filteredSkills, selectedSkillIds],
+  );
+
+  const allFilteredSelected =
+    filteredSkills.length > 0 &&
+    filteredSkills.every((skill) => selectedSkillIds.has(skill.id));
+
+  const isDeleting = uninstallMutation.isPending || isBatchDeleting;
+
   const handleToggleApp = async (id: string, app: AppId, enabled: boolean) => {
     try {
       await toggleAppMutation.mutateAsync({ id, app, enabled });
@@ -178,15 +194,11 @@ const UnifiedSkillsPanel = React.forwardRef<
       message: t("skills.uninstallConfirm", { name: skill.name }),
       onConfirm: async () => {
         try {
-          // 构建 skillKey 用于更新 discoverable 缓存
-          const installName =
-            skill.directory.split(/[/\\]/).pop()?.toLowerCase() ||
-            skill.directory.toLowerCase();
-          const skillKey = `${installName}:${skill.repoOwner?.toLowerCase() || ""}:${skill.repoName?.toLowerCase() || ""}`;
-
-          const result = await uninstallMutation.mutateAsync({
-            id: skill.id,
-            skillKey,
+          const result = await skillsApi.uninstallUnified(skill.id);
+          setSelectedSkillIds((current) => {
+            const next = new Set(current);
+            next.delete(skill.id);
+            return next;
           });
           setConfirmDialog(null);
           toast.success(t("skills.uninstallSuccess", { name: skill.name }), {
@@ -197,6 +209,82 @@ const UnifiedSkillsPanel = React.forwardRef<
           });
         } catch (error) {
           toast.error(t("common.error"), { description: String(error) });
+        }
+      },
+    });
+  };
+
+  const handleToggleSelect = (id: string, checked: boolean) => {
+    setSelectedSkillIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    setSelectedSkillIds((current) => {
+      const next = new Set(current);
+      if (allFilteredSelected) {
+        filteredSkills.forEach((skill) => next.delete(skill.id));
+      } else {
+        filteredSkills.forEach((skill) => next.add(skill.id));
+      }
+      return next;
+    });
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedSkills.length === 0 || isDeleting) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: t("skills.bulkDelete.title"),
+      message: t("skills.bulkDelete.message", {
+        count: selectedSkills.length,
+      }),
+      confirmText: t("skills.bulkDelete.confirm", {
+        count: selectedSkills.length,
+      }),
+      variant: "destructive",
+      onConfirm: async () => {
+        const loadingToast = toast.loading(
+          t("skills.bulkDelete.progress", { count: selectedSkills.length }),
+        );
+        setConfirmDialog(null);
+        setIsBatchDeleting(true);
+        let successCount = 0;
+        let firstError: string | null = null;
+        try {
+          for (const skill of selectedSkills) {
+            try {
+              await skillsApi.uninstallUnified(skill.id);
+              successCount++;
+            } catch (error) {
+              firstError ??= String(error);
+            }
+          }
+          setSelectedSkillIds(new Set());
+          if (successCount > 0) {
+            toast.success(t("skills.bulkDelete.success", { count: successCount }), {
+              id: loadingToast,
+              closeButton: true,
+            });
+          } else {
+            toast.error(t("skills.bulkDelete.failed"), {
+              id: loadingToast,
+              description: firstError ?? t("common.unknown"),
+            });
+          }
+          if (firstError && successCount > 0) {
+            toast.error(t("skills.bulkDelete.partialFailed", {
+              failed: selectedSkills.length - successCount,
+            }), {
+              description: firstError,
+            });
+          }
+        } finally {
+          setIsBatchDeleting(false);
         }
       },
     });
@@ -431,7 +519,7 @@ const UnifiedSkillsPanel = React.forwardRef<
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -478,7 +566,58 @@ const UnifiedSkillsPanel = React.forwardRef<
             </SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={handleBatchDelete}
+          disabled={selectedSkills.length === 0 || isDeleting}
+        >
+          {isBatchDeleting ? (
+            <Loader2 size={16} className="mr-1.5 animate-spin" />
+          ) : (
+            <Trash2 size={16} className="mr-1.5" />
+          )}
+          {isBatchDeleting
+            ? t("skills.bulkDelete.deleting")
+            : t("skills.bulkDelete.button", { count: selectedSkills.length })}
+        </Button>
       </div>
+
+      {(filteredSkills.length > 0 || selectedSkills.length > 0) && (
+        <div className="flex items-center justify-between gap-3 mb-4 rounded-lg border border-border-default bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              {t("common.selectedCount", { count: selectedSkills.length })}
+            </Badge>
+            <span>{t("common.batchModeHint")}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {filteredSkills.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={handleToggleSelectAll}
+              >
+                {allFilteredSelected
+                  ? t("common.clearFilteredSelection")
+                  : t("common.selectAllFiltered")}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setSelectedSkillIds(new Set())}
+              disabled={selectedSkills.length === 0}
+            >
+              {t("common.clearSelection")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-24">
         {isLoading ? (
@@ -524,6 +663,9 @@ const UnifiedSkillsPanel = React.forwardRef<
                   onToggleApp={handleToggleApp}
                   onUninstall={() => handleUninstall(skill)}
                   onUpdate={() => handleUpdateSkill(skill)}
+                  selectionMode
+                  isChecked={selectedSkillIds.has(skill.id)}
+                  onToggleChecked={(checked) => handleToggleSelect(skill.id, checked)}
                   isLast={index === filteredSkills.length - 1}
                 />
               ))}
@@ -576,6 +718,9 @@ interface InstalledSkillListItemProps {
   onToggleApp: (id: string, app: AppId, enabled: boolean) => void;
   onUninstall: () => void;
   onUpdate?: () => void;
+  selectionMode?: boolean;
+  isChecked?: boolean;
+  onToggleChecked?: (checked: boolean) => void;
   isLast?: boolean;
 }
 
@@ -586,6 +731,9 @@ const InstalledSkillListItem: React.FC<InstalledSkillListItemProps> = ({
   onToggleApp,
   onUninstall,
   onUpdate,
+  selectionMode = false,
+  isChecked = false,
+  onToggleChecked,
   isLast,
 }) => {
   const { t } = useTranslation();
@@ -608,6 +756,14 @@ const InstalledSkillListItem: React.FC<InstalledSkillListItemProps> = ({
 
   return (
     <ListItemRow isLast={isLast}>
+      {selectionMode && (
+        <Checkbox
+          checked={isChecked}
+          aria-label={t("common.select")}
+          onCheckedChange={(checked) => onToggleChecked?.(Boolean(checked))}
+        />
+      )}
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="font-medium text-sm text-foreground truncate">

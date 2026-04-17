@@ -36,8 +36,12 @@
     "all": "全部",
     "search": "查询",
     "reset": "重置",
-    "actions": "操作",
-    "deleting": "删除中...",
+    "select": "选择",
+    "selectedCount": "已选 {{count}} 项",
+    "batchModeHint": "勾选要删除的项目",
+    "selectAllFiltered": "全选当前",
+    "clearFilteredSelection": "取消全选",
+    "clearSelection": "清空已选",
     "auto": "自动",
     "enabled": "已开启",
     "notSet": "未设置"
@@ -1309,6 +1313,17 @@
         "disabled": "已禁用",
         "noResults": "没有匹配的 MCP 服务器",
         "noResultsHint": "请尝试调整搜索或筛选条件"
+      },
+      "bulkDelete": {
+        "button": "批量删除 ({{count}})",
+        "title": "批量删除 MCP 服务器",
+        "message": "确定要删除已选中的 {{count}} 个 MCP 服务器吗？此操作无法撤销。",
+        "confirm": "删除 {{count}} 个服务器",
+        "deleting": "删除中...",
+        "progress": "正在删除 {{count}} 个 MCP 服务器...",
+        "success": "已删除 {{count}} 个 MCP 服务器",
+        "failed": "批量删除 MCP 服务器失败",
+        "partialFailed": "仍有 {{failed}} 个 MCP 服务器删除失败"
       }
     },
     "userLevelPath": "用户级 MCP 配置路径",
@@ -1498,7 +1513,18 @@
     "importFailed": "导入失败",
     "confirm": {
       "deleteTitle": "确认删除",
-      "deleteMessage": "确定要删除提示词 \"{{name}}\" 吗？"
+      "deleteMessage": "确定要删除提示词 \"{{name}}\" 吗？",
+      "batchDeleteTitle": "批量删除提示词",
+      "batchDeleteMessage": "确定要删除当前筛选结果中的 {{count}} 个提示词吗？此操作无法撤销。"
+    },
+    "bulkDelete": {
+      "button": "批量删除 ({{count}})",
+      "confirm": "删除 {{count}} 个提示词",
+      "deleting": "删除中...",
+      "progress": "正在删除 {{count}} 个提示词...",
+      "success": "已删除 {{count}} 个提示词",
+      "failed": "批量删除提示词失败",
+      "partialFailed": "仍有 {{failed}} 个提示词删除失败"
     },
     "filter": {
       "search": "搜索提示词..."
@@ -1819,6 +1845,17 @@
     "foundIn": "发现于",
     "local": "本地",
     "uninstallConfirm": "确定要卸载技能 \"{{name}}\" 吗？这将从所有应用中移除该技能，并在删除前自动创建本地备份。",
+    "bulkDelete": {
+      "button": "批量删除 ({{count}})",
+      "title": "批量删除技能",
+      "message": "确定要卸载已选中的 {{count}} 个技能吗？这将从所有应用中移除它们，并在删除前自动创建本地备份。",
+      "confirm": "删除 {{count}} 个技能",
+      "deleting": "删除中...",
+      "progress": "正在删除 {{count}} 个技能...",
+      "success": "已删除 {{count}} 个技能",
+      "failed": "批量删除技能失败",
+      "partialFailed": "仍有 {{failed}} 个技能删除失败"
+    },
     "uninstallInMainPanel": "请在主面板中卸载技能",
     "notFound": "未找到技能",
     "backup": {

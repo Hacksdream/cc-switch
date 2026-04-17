@@ -36,8 +36,12 @@
     "all": "すべて",
     "search": "検索",
     "reset": "リセット",
-    "actions": "操作",
-    "deleting": "削除中...",
+    "select": "選択",
+    "selectedCount": "{{count}} 件を選択中",
+    "batchModeHint": "削除する項目を選択",
+    "selectAllFiltered": "現在の一覧を全選択",
+    "clearFilteredSelection": "現在の選択を解除",
+    "clearSelection": "選択をクリア",
     "auto": "自動",
     "enabled": "有効",
     "notSet": "未設定"
@@ -1308,6 +1312,17 @@
         "disabled": "無効",
         "noResults": "一致する MCP サーバーがありません",
         "noResultsHint": "検索条件やフィルターを調整してください"
+      },
+      "bulkDelete": {
+        "button": "一括削除 ({{count}})",
+        "title": "MCP サーバーを一括削除",
+        "message": "選択した {{count}} 件の MCP サーバーを削除しますか？この操作は元に戻せません。",
+        "confirm": "{{count}} 件のサーバーを削除",
+        "deleting": "削除中...",
+        "progress": "{{count}} 件の MCP サーバーを削除中...",
+        "success": "{{count}} 件の MCP サーバーを削除しました",
+        "failed": "MCP サーバーの一括削除に失敗しました",
+        "partialFailed": "{{failed}} 件の MCP サーバーを削除できませんでした"
       }
     },
     "userLevelPath": "ユーザーレベルの MCP パス",
@@ -1497,7 +1512,18 @@
     "importFailed": "インポートに失敗しました",
     "confirm": {
       "deleteTitle": "削除の確認",
-      "deleteMessage": "プロンプト「{{name}}」を削除してもよろしいですか？"
+      "deleteMessage": "プロンプト「{{name}}」を削除してもよろしいですか？",
+      "batchDeleteTitle": "プロンプトを一括削除",
+      "batchDeleteMessage": "現在の絞り込み結果に含まれる {{count}} 件のプロンプトを削除しますか？この操作は元に戻せません。"
+    },
+    "bulkDelete": {
+      "button": "一括削除 ({{count}})",
+      "confirm": "{{count}} 件のプロンプトを削除",
+      "deleting": "削除中...",
+      "progress": "{{count}} 件のプロンプトを削除中...",
+      "success": "{{count}} 件のプロンプトを削除しました",
+      "failed": "プロンプトの一括削除に失敗しました",
+      "partialFailed": "{{failed}} 件のプロンプトを削除できませんでした"
     },
     "filter": {
       "search": "プロンプトを検索..."
@@ -1818,6 +1844,17 @@
     "foundIn": "発見場所",
     "local": "ローカル",
     "uninstallConfirm": "「{{name}}」をアンインストールしますか？すべてのアプリからこのスキルが削除され、削除前にローカルバックアップが自動作成されます。",
+    "bulkDelete": {
+      "button": "一括削除 ({{count}})",
+      "title": "スキルを一括削除",
+      "message": "選択した {{count}} 件のスキルをアンインストールしますか？すべてのアプリから削除され、事前にローカルバックアップが作成されます。",
+      "confirm": "{{count}} 件のスキルを削除",
+      "deleting": "削除中...",
+      "progress": "{{count}} 件のスキルを削除中...",
+      "success": "{{count}} 件のスキルを削除しました",
+      "failed": "スキルの一括削除に失敗しました",
+      "partialFailed": "{{failed}} 件のスキルを削除できませんでした"
+    },
     "uninstallInMainPanel": "メインパネルからスキルをアンインストールしてください",
     "notFound": "スキルが見つかりません",
     "backup": {

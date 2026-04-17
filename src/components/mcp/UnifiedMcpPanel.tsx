@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Server, Search, Plug, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -14,7 +16,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   useAllMcpServers,
   useToggleMcpApp,
-  useDeleteMcpServer,
   useImportMcpFromApps,
   useTestMcpConnectivity,
 } from "@/hooks/useMcp";
@@ -60,12 +61,16 @@ const UnifiedMcpPanel = React.forwardRef<
     isOpen: boolean;
     title: string;
     message: string;
+    confirmText?: string;
     onConfirm: () => void;
   } | null>(null);
+  const [selectedServerIds, setSelectedServerIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   const { data: serversMap, isLoading } = useAllMcpServers();
   const toggleAppMutation = useToggleMcpApp();
-  const deleteServerMutation = useDeleteMcpServer();
   const importMutation = useImportMcpFromApps();
   const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const [importedServers, setImportedServers] = useState<
@@ -89,7 +94,6 @@ const UnifiedMcpPanel = React.forwardRef<
 
   const filteredServers = useMemo(() => {
     return serverEntries.filter(([id, server]) => {
-      // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const name = server.name || id;
@@ -100,12 +104,10 @@ const UnifiedMcpPanel = React.forwardRef<
         if (!matchesSearch) return false;
       }
 
-      // App filter
       if (filterApp !== "all" && !server.apps[filterApp]) {
         return false;
       }
 
-      // Status filter
       const isEnabled = Object.values(server.apps).some(Boolean);
       if (filterStatus === "enabled" && !isEnabled) return false;
       if (filterStatus === "disabled" && isEnabled) return false;
@@ -113,6 +115,15 @@ const UnifiedMcpPanel = React.forwardRef<
       return true;
     });
   }, [serverEntries, searchQuery, filterApp, filterStatus]);
+
+  const selectedServers = useMemo(
+    () => filteredServers.filter(([id]) => selectedServerIds.has(id)),
+    [filteredServers, selectedServerIds],
+  );
+
+  const allFilteredSelected =
+    filteredServers.length > 0 &&
+    filteredServers.every(([id]) => selectedServerIds.has(id));
 
   const handleToggleApp = async (
     serverId: string,
@@ -168,7 +179,7 @@ const UnifiedMcpPanel = React.forwardRef<
       }
       setImportedServers(servers);
       setIsImportPreviewOpen(true);
-    } catch (e) {
+    } catch {
       toast.error(t("mcp.importJson.parseError"));
     }
   };
@@ -203,11 +214,94 @@ const UnifiedMcpPanel = React.forwardRef<
       message: t("mcp.unifiedPanel.deleteConfirm", { id }),
       onConfirm: async () => {
         try {
-          await deleteServerMutation.mutateAsync(id);
+          await mcpApi.deleteUnifiedServer(id);
+          setSelectedServerIds((current) => {
+            const next = new Set(current);
+            next.delete(id);
+            return next;
+          });
           setConfirmDialog(null);
           toast.success(t("common.success"), { closeButton: true });
         } catch (error) {
           toast.error(t("common.error"), { description: String(error) });
+        }
+      },
+    });
+  };
+
+  const handleToggleSelect = (id: string, checked: boolean) => {
+    setSelectedServerIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    setSelectedServerIds((current) => {
+      const next = new Set(current);
+      if (allFilteredSelected) {
+        filteredServers.forEach(([id]) => next.delete(id));
+      } else {
+        filteredServers.forEach(([id]) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedServers.length === 0 || isBatchDeleting) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: t("mcp.unifiedPanel.bulkDelete.title"),
+      message: t("mcp.unifiedPanel.bulkDelete.message", {
+        count: selectedServers.length,
+      }),
+      confirmText: t("mcp.unifiedPanel.bulkDelete.confirm", {
+        count: selectedServers.length,
+      }),
+      onConfirm: async () => {
+        const loadingToast = toast.loading(
+          t("mcp.unifiedPanel.bulkDelete.progress", {
+            count: selectedServers.length,
+          }),
+        );
+        setConfirmDialog(null);
+        setIsBatchDeleting(true);
+        let successCount = 0;
+        let firstError: string | null = null;
+        try {
+          for (const [id] of selectedServers) {
+            try {
+              await mcpApi.deleteUnifiedServer(id);
+              successCount++;
+            } catch (error) {
+              firstError ??= String(error);
+            }
+          }
+          setSelectedServerIds(new Set());
+          if (successCount > 0) {
+            toast.success(
+              t("mcp.unifiedPanel.bulkDelete.success", { count: successCount }),
+              { id: loadingToast, closeButton: true },
+            );
+          } else {
+            toast.error(t("mcp.unifiedPanel.bulkDelete.failed"), {
+              id: loadingToast,
+              description: firstError ?? t("common.unknown"),
+            });
+          }
+          if (firstError && successCount > 0) {
+            toast.error(
+              t("mcp.unifiedPanel.bulkDelete.partialFailed", {
+                failed: selectedServers.length - successCount,
+              }),
+              { description: firstError },
+            );
+          }
+        } finally {
+          setIsBatchDeleting(false);
         }
       },
     });
@@ -226,7 +320,7 @@ const UnifiedMcpPanel = React.forwardRef<
         appIds={MCP_SKILLS_APP_IDS}
       />
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-3">
         <div className="relative flex-1">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -277,7 +371,60 @@ const UnifiedMcpPanel = React.forwardRef<
             </SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={handleBatchDelete}
+          disabled={selectedServers.length === 0 || isBatchDeleting}
+        >
+          {isBatchDeleting ? (
+            <Loader2 size={16} className="mr-1.5 animate-spin" />
+          ) : (
+            <Trash2 size={16} className="mr-1.5" />
+          )}
+          {isBatchDeleting
+            ? t("mcp.unifiedPanel.bulkDelete.deleting")
+            : t("mcp.unifiedPanel.bulkDelete.button", {
+                count: selectedServers.length,
+              })}
+        </Button>
       </div>
+
+      {(filteredServers.length > 0 || selectedServers.length > 0) && (
+        <div className="flex items-center justify-between gap-3 mb-4 rounded-lg border border-border-default bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              {t("common.selectedCount", { count: selectedServers.length })}
+            </Badge>
+            <span>{t("common.batchModeHint")}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {filteredServers.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={handleToggleSelectAll}
+              >
+                {allFilteredSelected
+                  ? t("common.clearFilteredSelection")
+                  : t("common.selectAllFiltered")}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setSelectedServerIds(new Set())}
+              disabled={selectedServers.length === 0}
+            >
+              {t("common.clearSelection")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-24">
         {isLoading ? (
@@ -319,6 +466,9 @@ const UnifiedMcpPanel = React.forwardRef<
                   onToggleApp={handleToggleApp}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  selectionMode
+                  isChecked={selectedServerIds.has(id)}
+                  onToggleChecked={(checked) => handleToggleSelect(id, checked)}
                   isLast={index === filteredServers.length - 1}
                 />
               ))}
@@ -348,6 +498,7 @@ const UnifiedMcpPanel = React.forwardRef<
           isOpen={confirmDialog.isOpen}
           title={confirmDialog.title}
           message={confirmDialog.message}
+          confirmText={confirmDialog.confirmText}
           onConfirm={confirmDialog.onConfirm}
           onCancel={() => setConfirmDialog(null)}
         />
@@ -371,6 +522,9 @@ interface UnifiedMcpListItemProps {
   onToggleApp: (serverId: string, app: AppId, enabled: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  selectionMode?: boolean;
+  isChecked?: boolean;
+  onToggleChecked?: (checked: boolean) => void;
   isLast?: boolean;
 }
 
@@ -380,6 +534,9 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
   onToggleApp,
   onEdit,
   onDelete,
+  selectionMode = false,
+  isChecked = false,
+  onToggleChecked,
   isLast,
 }) => {
   const { t } = useTranslation();
@@ -418,6 +575,14 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
 
   return (
     <ListItemRow isLast={isLast}>
+      {selectionMode && (
+        <Checkbox
+          checked={isChecked}
+          aria-label={t("common.select")}
+          onCheckedChange={(checked) => onToggleChecked?.(Boolean(checked))}
+        />
+      )}
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="font-medium text-sm text-foreground truncate">
