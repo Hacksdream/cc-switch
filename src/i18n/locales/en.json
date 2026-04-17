@@ -1444,8 +1444,8 @@
     "connectivity": {
       "test": "Test Connectivity",
       "testing": "Testing...",
-      "success": "Connection successful",
-      "failed": "Connection failed"
+      "success": "Connection successful: {{message}}",
+      "failed": "Connection failed: {{message}}"
     },
     "importJson": {
       "button": "Import JSON",

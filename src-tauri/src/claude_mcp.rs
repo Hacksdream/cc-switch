@@ -328,41 +328,131 @@ pub fn delete_mcp_server(id: &str) -> Result<bool, AppError> {
     Ok(true)
 }
 
-pub fn validate_command_in_path(cmd: &str) -> Result<bool, AppError> {
-    if cmd.trim().is_empty() {
-        return Ok(false);
+fn push_unique_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if path.as_os_str().is_empty() {
+        return;
     }
-    // 如果包含路径分隔符，直接判断是否存在可执行文件
-    if cmd.contains('/') || cmd.contains('\\') {
-        return Ok(Path::new(cmd).exists());
+
+    if !paths.iter().any(|existing| existing == &path) {
+        paths.push(path);
     }
+}
+
+fn build_command_search_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
 
     let path_var = env::var_os("PATH").unwrap_or_default();
-    let paths = env::split_paths(&path_var);
+    for path in env::split_paths(&path_var) {
+        push_unique_path(&mut paths, path);
+    }
 
-    #[cfg(windows)]
-    let exts: Vec<String> = env::var("PATHEXT")
-        .unwrap_or(".COM;.EXE;.BAT;.CMD".into())
-        .split(';')
-        .map(|s| s.trim().to_uppercase())
-        .collect();
+    let home = dirs::home_dir().unwrap_or_default();
+    if !home.as_os_str().is_empty() {
+        push_unique_path(&mut paths, home.join(".cargo/bin"));
+        push_unique_path(&mut paths, home.join(".local/bin"));
+        push_unique_path(&mut paths, home.join(".npm-global/bin"));
+        push_unique_path(&mut paths, home.join("n/bin"));
+        push_unique_path(&mut paths, home.join(".volta/bin"));
+        push_unique_path(&mut paths, home.join(".bun/bin"));
+        push_unique_path(&mut paths, home.join("go/bin"));
+    }
 
-    for p in paths {
-        let candidate = p.join(cmd);
-        if candidate.is_file() {
-            return Ok(true);
+    #[cfg(target_os = "macos")]
+    {
+        push_unique_path(&mut paths, PathBuf::from("/opt/homebrew/bin"));
+        push_unique_path(&mut paths, PathBuf::from("/usr/local/bin"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        push_unique_path(&mut paths, PathBuf::from("/usr/local/bin"));
+        push_unique_path(&mut paths, PathBuf::from("/usr/bin"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(appdata) = dirs::data_dir() {
+            push_unique_path(&mut paths, appdata.join("npm"));
         }
-        #[cfg(windows)]
-        {
-            for ext in &exts {
-                let cand = p.join(format!("{}{}", cmd, ext));
-                if cand.is_file() {
-                    return Ok(true);
+        push_unique_path(&mut paths, PathBuf::from("C:\\Program Files\\nodejs"));
+    }
+
+    let fnm_base = home.join(".local/state/fnm_multishells");
+    if fnm_base.exists() {
+        if let Ok(entries) = fs::read_dir(&fnm_base) {
+            for entry in entries.flatten() {
+                let bin_path = entry.path().join("bin");
+                if bin_path.exists() {
+                    push_unique_path(&mut paths, bin_path);
                 }
             }
         }
     }
-    Ok(false)
+
+    let nvm_base = home.join(".nvm/versions/node");
+    if nvm_base.exists() {
+        if let Ok(entries) = fs::read_dir(&nvm_base) {
+            for entry in entries.flatten() {
+                let bin_path = entry.path().join("bin");
+                if bin_path.exists() {
+                    push_unique_path(&mut paths, bin_path);
+                }
+            }
+        }
+    }
+
+    paths
+}
+
+fn command_candidates(cmd: &str, dir: &Path) -> Vec<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        let exts: Vec<String> = env::var("PATHEXT")
+            .unwrap_or(".COM;.EXE;.BAT;.CMD".into())
+            .split(';')
+            .map(|s| s.trim().to_uppercase())
+            .collect();
+
+        let mut candidates = vec![dir.join(cmd)];
+        for ext in exts {
+            candidates.push(dir.join(format!("{}{}", cmd, ext)));
+        }
+        candidates
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        vec![dir.join(cmd)]
+    }
+}
+
+fn find_command_in_paths(cmd: &str, search_paths: &[PathBuf]) -> Option<PathBuf> {
+    for dir in search_paths {
+        for candidate in command_candidates(cmd, dir) {
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+pub fn resolve_command_path(cmd: &str) -> Option<PathBuf> {
+    if cmd.trim().is_empty() {
+        return None;
+    }
+
+    if cmd.contains('/') || cmd.contains('\\') {
+        let path = PathBuf::from(cmd);
+        return path.is_file().then_some(path);
+    }
+
+    let search_paths = build_command_search_paths();
+    find_command_in_paths(cmd, &search_paths)
+}
+
+pub fn validate_command_in_path(cmd: &str) -> Result<bool, AppError> {
+    Ok(resolve_command_path(cmd).is_some())
 }
 
 /// 读取 ~/.claude.json 中的 mcpServers 映射
@@ -575,6 +665,33 @@ mod tests {
             assert_eq!(obj["command"], "cmd");
             assert_eq!(obj["args"], json!(["/c", "NPX", "-y", "foo"]));
         }
+    }
+
+    #[test]
+    fn test_validate_command_in_path_rejects_empty_command() {
+        assert!(!validate_command_in_path("").expect("empty command should not error"));
+    }
+
+    #[test]
+    fn test_resolve_command_path_accepts_existing_absolute_path() {
+        let path = if cfg!(windows) {
+            PathBuf::from(r"C:\\Windows\\System32\\cmd.exe")
+        } else {
+            PathBuf::from("/bin/sh")
+        };
+
+        let resolved = resolve_command_path(path.to_str().expect("path should be valid utf8"));
+        assert_eq!(resolved.as_deref(), Some(path.as_path()));
+    }
+
+    #[test]
+    fn test_resolve_command_path_finds_common_shell_command() {
+        let command = if cfg!(windows) { "cmd" } else { "sh" };
+        let resolved = resolve_command_path(command);
+        assert!(
+            resolved.is_some(),
+            "expected to resolve common shell command: {command}"
+        );
     }
 
     /// 测试 WSL 路径检测功能

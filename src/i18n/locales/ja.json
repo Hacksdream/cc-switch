@@ -1444,8 +1444,8 @@
     "connectivity": {
       "test": "接続テスト",
       "testing": "テスト中...",
-      "success": "接続成功",
-      "failed": "接続失敗"
+      "success": "接続成功: {{message}}",
+      "failed": "接続失敗: {{message}}"
     },
     "importJson": {
       "button": "JSONインポート",
