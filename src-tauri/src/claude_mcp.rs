@@ -338,6 +338,26 @@ fn push_unique_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
     }
 }
 
+fn add_existing_directories(paths: &mut Vec<PathBuf>, base: &Path, max_depth: usize) {
+    if max_depth == 0 || !base.exists() {
+        return;
+    }
+
+    let Ok(entries) = fs::read_dir(base) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        push_unique_path(paths, path.clone());
+        add_existing_directories(paths, &path, max_depth - 1);
+    }
+}
+
 fn build_command_search_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
@@ -355,6 +375,11 @@ fn build_command_search_paths() -> Vec<PathBuf> {
         push_unique_path(&mut paths, home.join(".volta/bin"));
         push_unique_path(&mut paths, home.join(".bun/bin"));
         push_unique_path(&mut paths, home.join("go/bin"));
+        push_unique_path(&mut paths, home.join(".mise/shims"));
+        push_unique_path(&mut paths, home.join(".local/share/mise/shims"));
+
+        let mise_installs = home.join(".local/share/mise/installs");
+        add_existing_directories(&mut paths, &mise_installs, 3);
     }
 
     #[cfg(target_os = "macos")]
