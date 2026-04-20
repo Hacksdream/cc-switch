@@ -245,8 +245,12 @@ pub fn read_opencode_config() -> Result<Value, AppError> {
     }
 
     let content = std::fs::read_to_string(&path).map_err(|e| AppError::io(&path, e))?;
-    let stripped = strip_jsonc_comments(&content);
-    serde_json::from_str(&stripped).map_err(|e| AppError::json(&path, e))
+    json5::from_str(&content).map_err(|e| {
+        AppError::Config(format!(
+            "Failed to parse OpenCode config: {}: {e}",
+            path.display()
+        ))
+    })
 }
 
 #[allow(dead_code)]
