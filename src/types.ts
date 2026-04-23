@@ -155,6 +155,8 @@ export interface ProviderMeta {
   isFullUrl?: boolean;
   // Prompt cache key for OpenAI Responses-compatible endpoints (improves cache hit rate)
   promptCacheKey?: string;
+  // Codex OAuth FAST mode: injects service_tier="priority" on ChatGPT Codex requests
+  codexFastMode?: boolean;
   // 供应商类型（用于识别 Copilot 等特殊供应商）
   providerType?: string;
   // GitHub Copilot 关联账号 ID（旧字段，保留兼容读取）
@@ -188,6 +190,7 @@ export interface VisibleApps {
   gemini: boolean;
   opencode: boolean;
   openclaw: boolean;
+  hermes: boolean;
 }
 
 // WebDAV 同步状态
@@ -281,6 +284,8 @@ export interface Settings {
   opencodeConfigDir?: string;
   // 覆盖 OpenClaw 配置目录（可选）
   openclawConfigDir?: string;
+  // 覆盖 Hermes 配置目录（可选）
+  hermesConfigDir?: string;
 
   // ===== 当前供应商 ID（设备级）=====
   // 当前 Claude 供应商 ID（优先于数据库 is_current）
@@ -356,6 +361,7 @@ export interface McpApps {
   gemini: boolean;
   opencode: boolean;
   openclaw: boolean;
+  hermes: boolean;
 }
 
 // MCP 服务器条目（v3.7.0 统一结构）
@@ -570,4 +576,37 @@ export interface OpenClawToolsConfig {
   allow?: string[];
   deny?: string[];
   [key: string]: unknown; // preserve unknown fields
+}
+
+// ============================================================================
+// Hermes Agent 专属配置
+// ============================================================================
+
+export interface HermesModelConfig {
+  default?: string;
+  provider?: string;
+  base_url?: string;
+  context_length?: number;
+  max_tokens?: number;
+  [key: string]: unknown;
+}
+
+export interface HermesHealthWarning {
+  code: string;
+  message: string;
+  path?: string;
+}
+
+export interface HermesWriteOutcome {
+  backupPath?: string;
+  warnings: HermesHealthWarning[];
+}
+
+export type HermesMemoryKind = "memory" | "user";
+
+export interface HermesMemoryLimits {
+  memory: number;
+  user: number;
+  memoryEnabled: boolean;
+  userEnabled: boolean;
 }

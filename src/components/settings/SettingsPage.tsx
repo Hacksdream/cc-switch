@@ -321,6 +321,7 @@ export function SettingsPage({
                             geminiDir={settings.geminiConfigDir}
                             opencodeDir={settings.opencodeConfigDir}
                             openclawDir={settings.openclawConfigDir}
+                            hermesDir={settings.hermesConfigDir}
                             onDirectoryChange={updateDirectory}
                             onBrowseDirectory={browseDirectory}
                             onResetDirectory={resetDirectory}
@@ -478,7 +479,7 @@ export function SettingsPage({
 
             {activeTab === "advanced" && settings && (
               <div
-                className="flex-shrink-0 py-4 border-t border-border-default"
+                className="flex-shrink-0 pt-4 border-t border-border-default"
                 style={{ backgroundColor: "hsl(var(--background))" }}
               >
                 <div className="px-6 flex items-center justify-end gap-3">

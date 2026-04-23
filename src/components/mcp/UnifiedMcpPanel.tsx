@@ -27,7 +27,7 @@ import { Edit3, Trash2, ExternalLink } from "lucide-react";
 import { settingsApi } from "@/lib/api";
 import { mcpPresets } from "@/config/mcpPresets";
 import { toast } from "sonner";
-import { MCP_SKILLS_APP_IDS } from "@/config/appConfig";
+import { MCP_APP_IDS } from "@/config/appConfig";
 import { AppCountBar } from "@/components/common/AppCountBar";
 import { AppToggleGroup } from "@/components/common/AppToggleGroup";
 import { ListItemRow } from "@/components/common/ListItemRow";
@@ -83,9 +83,16 @@ const UnifiedMcpPanel = React.forwardRef<
   }, [serversMap]);
 
   const enabledCounts = useMemo(() => {
-    const counts = { claude: 0, codex: 0, gemini: 0, opencode: 0, openclaw: 0 };
+    const counts = {
+      claude: 0,
+      codex: 0,
+      gemini: 0,
+      opencode: 0,
+      openclaw: 0,
+      hermes: 0,
+    };
     serverEntries.forEach(([_, server]) => {
-      for (const app of MCP_SKILLS_APP_IDS) {
+      for (const app of MCP_APP_IDS) {
         if (server.apps[app]) counts[app]++;
       }
     });
@@ -317,7 +324,7 @@ const UnifiedMcpPanel = React.forwardRef<
       <AppCountBar
         totalLabel={t("mcp.serverCount", { count: serverEntries.length })}
         counts={enabledCounts}
-        appIds={MCP_SKILLS_APP_IDS}
+        appIds={MCP_APP_IDS}
       />
 
       <div className="flex gap-3 mb-3">
@@ -617,7 +624,7 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
       <AppToggleGroup
         apps={server.apps}
         onToggle={(app, enabled) => onToggleApp(id, app, enabled)}
-        appIds={MCP_SKILLS_APP_IDS}
+        appIds={MCP_APP_IDS}
       />
 
       <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
