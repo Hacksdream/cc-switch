@@ -366,6 +366,9 @@ pub struct AppSettings {
     /// User has confirmed the usage query first-run notice
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_confirmed: Option<bool>,
+    /// User has confirmed the stream check first-run notice
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_check_confirmed: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_dashboard_refresh_interval_ms: Option<u32>,
     /// Whether to show the failover toggle independently on the main page
@@ -507,6 +510,7 @@ impl Default for AppSettings {
             enable_local_proxy: false,
             proxy_confirmed: None,
             usage_confirmed: None,
+            stream_check_confirmed: None,
             usage_dashboard_refresh_interval_ms: None,
             enable_failover_toggle: false,
             show_profile_switcher: true,
